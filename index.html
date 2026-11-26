@@ -277,13 +277,30 @@ html, body { margin: 0; }
   function subCode() { return sub ? JSON.stringify(Object.assign(sub.toJSON(), form ? { profile: form } : {})) : ''; }
 
   // 이 기기가 등록돼 있으면 어떤 사람(profile)인지 찾음. 등록도 설정도 없으면 첫 화면에 맞춤 설정을 보여 줌
+  // 알림 저장소(워커): 있으면 알림 등록·일시중지를 버튼 하나로 처리
+  var workerUrl = null, paused = false, toggling = false;
+  function api(path, body) {
+    return fetch(workerUrl + path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || r.status); return j; }); });
+  }
   function resolveProfile() {
     var subP = swReady ? swReady.then(function (r) { return r.pushManager ? r.pushManager.getSubscription() : null; }).catch(function () { return null; }) : Promise.resolve(null);
     var get = function (u) { return fetch(u + '?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }); };
-    return Promise.all([subP, get('push/subscriptions.json'), get('push/profiles.json')]).then(function (res) {
+    return Promise.all([subP, get('push/subscriptions.json'), get('push/profiles.json'), get('push/worker.json')]).then(function (res) {
       sub = res[0] || null;
       var list = res[1];
-      if (list && sub) {
+      workerUrl = res[3] && res[3].url || null;
+      if (workerUrl && sub) {
+        return api('/status', { endpoint: sub.endpoint }).then(function (st) {
+          if (st.registered) { profileId = st.id; paused = !!st.paused; ls('profile-id', profileId); ls('push-registered', sub.endpoint); }
+          else ls('push-registered', null);
+          return res;
+        }, function () { return res; });
+      }
+      return res;
+    }).then(function (res) {
+      var list = res[1];
+      if (!workerUrl && list && sub) {
         var m = list.filter(function (x) { return x.endpoint === sub.endpoint; })[0];
         if (m) { profileId = m.profile || 'p1'; ls('profile-id', profileId); if (ls('profile-dirty') !== '1') ls('push-registered', sub.endpoint); }
       }
@@ -308,7 +325,14 @@ html, body { margin: 0; }
       return reg.pushManager.getSubscription().then(function (s) {
         return s || reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(VAPID_PUBLIC) });
       });
-    }).then(function (s) { sub = s; }, function (e) {
+    }).then(function (s) {
+      sub = s;
+      if (!workerUrl) return;
+      return api('/register', { sub: s.toJSON(), profile: form }).then(function (r) {
+        profileId = r.id; paused = false; ls('profile-id', profileId); ls('push-registered', s.endpoint); ls('profile-dirty', null); offDone = false;
+        if (raw) setData(raw, true);
+      });
+    }).then(null, function (e) {
       pushErr = (e && e.message === 'denied') ? '알림 권한이 꺼져 있어요. 휴대폰 설정에서 이 앱의 알림을 허용한 뒤 다시 눌러 주세요.' : '알림을 켜지 못했어요. 잠시 뒤 다시 눌러 주세요.';
     }).then(function () { pushBusy = false; render(false); });
   }
@@ -339,8 +363,14 @@ html, body { margin: 0; }
     var install = installEvt ? '<button type="button" class="rbtn small" data-act="install">홈 화면에 앱 설치</button>' : '';
     if (!pushOK) return install ? '<div class="panel"><h3><span class="dot"></span>앱 설치</h3>' + install + '</div>' : '';
     var perm = Notification.permission;
-    if (sub && perm === 'granted') {
-      var registered = ls('push-registered') === sub.endpoint;
+    var registered = !!sub && ls('push-registered') === sub.endpoint;
+    if (sub && perm === 'granted' && (registered || !workerUrl)) {
+      if (registered && workerUrl) {
+        return '<div class="panel"><h3><span class="dot' + (paused ? '' : ' on') + '"></span>' + (paused ? '알림 일시중지됨' : '알림 켜짐') + '</h3>' +
+          '<p>' + (paused ? '다시 켜기 전까지 알림이 오지 않아요. 카드는 계속 볼 수 있어요.' : esc(schedLabel()) + '에 "이슈 뉴스 도착" 알림이 와요.' + (mySched().holidays !== false ? ' 공휴일에는 쉬어요.' : '')) + '</p>' +
+          '<button type="button" class="rbtn small' + (paused ? ' solid' : '') + '" data-act="toggle"' + (toggling ? ' disabled' : '') + '>' + (toggling ? '바꾸는 중…' : (paused ? '알림 다시 켜기' : '알림 일시중지')) + '</button>' +
+          (pushErr ? '<p class="rstatus err">' + esc(pushErr) + '</p>' : '') + install + '</div>';
+      }
       if (registered) {
         return '<div class="panel"><h3><span class="dot on"></span>알림 켜짐</h3><p>' + esc(schedLabel()) + '에 "이슈 뉴스 도착" 알림이 와요.' + (mySched().holidays !== false ? ' 공휴일에는 쉬어요.' : '') + '</p>' + install +
           '<button type="button" class="rbtn small" data-act="pause-help">알림 일시중지</button>' +
@@ -482,7 +512,8 @@ html, body { margin: 0; }
         schedule: { time: tm, days: dayBtn ? dayBtn.getAttribute('data-days') : 'weekdays', holidays: !hol || hol.getAttribute('aria-pressed') === 'true' } };
       if (!profileId) sched = null;
       ls('profile-local', JSON.stringify(form));
-      if (profileId) { ls('push-registered', null); ls('profile-dirty', '1'); } // 이미 등록된 기기면 바뀐 설정을 반영하도록 코드를 다시 보내게 함
+      if (profileId && workerUrl && sub) { api('/profile', { endpoint: sub.endpoint, profile: form }).catch(function () {}); sched = form.schedule; }
+      else if (profileId) { ls('push-registered', null); ls('profile-dirty', '1'); } // 저장소가 없으면 바뀐 설정을 코드로 다시 보내게 함
       showSetup = false; i = 0; return setData(raw, true);
     }
     if (name === 'skip-profile') { ls('profile-skip', '1'); showSetup = false; i = 0; return setData(raw, true); }
@@ -490,6 +521,11 @@ html, body { margin: 0; }
     if (name === 'push') return enablePush();
     if (name === 'copy') return copyCode();
     if (name === 'registered') { if (sub) ls('push-registered', sub.endpoint); ls('profile-dirty', null); copied = false; return render(false); }
+    if (name === 'toggle' && workerUrl && sub && !toggling) {
+      toggling = true; pushErr = ''; render(false);
+      return api('/pause', { endpoint: sub.endpoint, paused: !paused }).then(function (r) { paused = r.paused; }, function () { pushErr = '바꾸지 못했어요. 인터넷 연결을 확인하고 다시 눌러 주세요.'; })
+        .then(function () { toggling = false; render(false); });
+    }
     if (name === 'pause-help') { pauseHelp = !pauseHelp; return render(false); }
     if (name === 'push-off') {
       if (!offArm) { offArm = true; render(false); setTimeout(function () { if (offArm) { offArm = false; rerenderIfPanel(); } }, 5000); return; }

@@ -13,7 +13,20 @@ const site = process.env.SITE_URL || `https://${owner.toLowerCase()}.github.io/$
 const { publicKey } = read('push/config.json');
 const privateKey = process.env.VAPID_PRIVATE_KEY;
 if (!privateKey) { console.error('VAPID_PRIVATE_KEY 시크릿이 없습니다.'); process.exit(1); }
-const subs = read('push/subscriptions.json');
+let subs = read('push/subscriptions.json');
+// 알림 저장소(워커)가 있으면 거기서 최신 기기 목록을 받아옴. 일시중지한 기기는 뺌
+if (fs.existsSync('push/worker.json')) {
+  try {
+    const { createHash } = await import('node:crypto');
+    const { url } = read('push/worker.json');
+    const r = await fetch(url + '/admin/list', { headers: { Authorization: 'Bearer ' + createHash('sha256').update(process.env.VAPID_PRIVATE_KEY || '').digest('hex') } });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const recs = await r.json();
+    const paused = recs.filter((x) => x.paused).length;
+    subs = recs.filter((x) => !x.paused).map((x) => ({ ...x.sub, profile: x.id }));
+    console.log(`알림 저장소에서 기기 ${recs.length}대 확인 (일시중지 ${paused}대 제외)`);
+  } catch (e) { console.error('알림 저장소 접속 실패, 저장소 파일 목록으로 보냅니다:', e.message); }
+}
 const vapidDetails = { subject: site, publicKey, privateKey };
 
 async function send(list, payload) {
