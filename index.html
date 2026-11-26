@@ -35,6 +35,8 @@
   --c-sec: #c4323a;
   --c-biz: #a14a8c;
   --c-job: #4d6b1f;
+  --c-ent: #c2410c;
+  --c-trend: #0e7490;
   --shadow: 0 10px 30px rgba(20, 30, 50, .12), 0 2px 6px rgba(20, 30, 50, .06);
   --f-text: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
   --f-num: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
@@ -43,14 +45,14 @@
   :root:not([data-theme="light"]) {
     --bg: #0f1319; --card: #181e27; --ink: #e8ecf2; --muted: #9aa5b5; --line: #2a3340; --soft: #1f2732;
     --accent: #7c9cff; --c-econ: #7c9cff; --c-pol: #b88cf0; --c-soc: #4cc7b4; --c-world: #f0a944;
-    --c-tech: #8f98ff; --c-sec: #ff7c83; --c-biz: #e48cc9; --c-job: #a5cf62;
+    --c-tech: #8f98ff; --c-sec: #ff7c83; --c-biz: #e48cc9; --c-job: #a5cf62; --c-ent: #ff9b6b; --c-trend: #5fd0e6;
     --shadow: 0 10px 30px rgba(0,0,0,.45); color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #0f1319; --card: #181e27; --ink: #e8ecf2; --muted: #9aa5b5; --line: #2a3340; --soft: #1f2732;
   --accent: #7c9cff; --c-econ: #7c9cff; --c-pol: #b88cf0; --c-soc: #4cc7b4; --c-world: #f0a944;
-  --c-tech: #8f98ff; --c-sec: #ff7c83; --c-biz: #e48cc9; --c-job: #a5cf62;
+  --c-tech: #8f98ff; --c-sec: #ff7c83; --c-biz: #e48cc9; --c-job: #a5cf62; --c-ent: #ff9b6b; --c-trend: #5fd0e6;
   --shadow: 0 10px 30px rgba(0,0,0,.45); color-scheme: dark;
 }
 html, body { height: 100%; }
@@ -191,9 +193,9 @@ body.in-setup .app { grid-template-rows: auto 1fr; }
 (function () {
   var VAPID_PUBLIC = 'BA8P9fwi0-zCuWnbcrGziNszFg_6qSnRK2uqmKkSglrp_qjv0oI93DoqJ-fH4MHKCVhIwGUF19bu2uQSHZS70Eo';
   var CLAUDE_REFRESH_URL = 'https://claude.ai/artifact/BoJLPa1UdMstYCaAk2Dr1k';
-  var catVar = { econ: '--c-econ', pol: '--c-pol', soc: '--c-soc', world: '--c-world', tech: '--c-tech', sec: '--c-sec', biz: '--c-biz', job: '--c-job' };
+  var catVar = { econ: '--c-econ', pol: '--c-pol', soc: '--c-soc', world: '--c-world', tech: '--c-tech', sec: '--c-sec', biz: '--c-biz', job: '--c-job', ent: '--c-ent', trend: '--c-trend' };
   var raw = null, data = null, slides = [{ type: 'loading' }], i = 0, cur;
-  var INTERESTS = ['반도체·전자', 'IT·AI·소프트웨어', '제조·스마트팩토리', '에너지·전력', '자동차·모빌리티', '건설·부동산', '금융·투자', '바이오·헬스케어', '유통·소비재', '공공·교육', '게임·콘텐츠', '취업·이직'];
+  var INTERESTS = ['반도체·전자', 'IT·AI·소프트웨어', '제조·스마트팩토리', '에너지·전력', '자동차·모빌리티', '건설·부동산', '금융·투자', '바이오·헬스케어', '유통·소비재', '공공·교육', '게임·콘텐츠', '연예·방송', '인터넷 밈·트렌드', '스포츠', '취업·이직'];
   var profileId = ls('profile-id') || null, profileChecked = false, showSetup = false;
   var form = (function () { try { return JSON.parse(ls('profile-local')) || null; } catch (e) { return null; } })();
   var stage = document.getElementById('stage');
