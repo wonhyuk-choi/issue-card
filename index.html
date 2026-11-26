@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>아침 이슈 카드</title>
+<meta name="description" content="평일 아침 7시 20분, 한 손으로 넘겨 보는 이슈 카드">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#e9edf2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1319" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="이슈 카드">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: one full-height card at a time, story-style progress on top, thumb-zone controls at the bottom */
+:root {
+  --bg: #e9edf2;
+  --card: #ffffff;
+  --ink: #131820;
+  --muted: #5a6474;
+  --line: #d9dfe7;
+  --soft: #f3f5f8;
+  --accent: #1f4fd8;
+  --c-econ: #1f4fd8;
+  --c-pol: #7a3fc4;
+  --c-soc: #0c8a7a;
+  --c-world: #b86a00;
+  --c-tech: #3b47c9;
+  --c-sec: #c4323a;
+  --c-biz: #a14a8c;
+  --c-job: #4d6b1f;
+  --shadow: 0 10px 30px rgba(20, 30, 50, .12), 0 2px 6px rgba(20, 30, 50, .06);
+  --f-text: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --f-num: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1319; --card: #181e27; --ink: #e8ecf2; --muted: #9aa5b5; --line: #2a3340; --soft: #1f2732;
+    --accent: #7c9cff; --c-econ: #7c9cff; --c-pol: #b88cf0; --c-soc: #4cc7b4; --c-world: #f0a944;
+    --c-tech: #8f98ff; --c-sec: #ff7c83; --c-biz: #e48cc9; --c-job: #a5cf62;
+    --shadow: 0 10px 30px rgba(0,0,0,.45); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1319; --card: #181e27; --ink: #e8ecf2; --muted: #9aa5b5; --line: #2a3340; --soft: #1f2732;
+  --accent: #7c9cff; --c-econ: #7c9cff; --c-pol: #b88cf0; --c-soc: #4cc7b4; --c-world: #f0a944;
+  --c-tech: #8f98ff; --c-sec: #ff7c83; --c-biz: #e48cc9; --c-job: #a5cf62;
+  --shadow: 0 10px 30px rgba(0,0,0,.45); color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--f-text);
+  overflow: hidden; -webkit-tap-highlight-color: transparent;
+}
+.app {
+  height: 100%; display: grid; grid-template-rows: auto 1fr auto; gap: 10px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 10px 12px; max-width: 520px; margin: 0 auto; box-sizing: border-box;
+}
+.top { display: grid; gap: 8px; }
+.bars { display: flex; gap: 3px; }
+.bars span { flex: 1; height: 3px; border-radius: 2px; background: var(--line); transition: background .2s; }
+.bars span.on { background: var(--ink); }
+.meta { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: var(--muted); }
+.meta b { color: var(--ink); font-weight: 600; letter-spacing: .02em; }
+.meta .count { font-family: var(--f-num); font-variant-numeric: tabular-nums; }
+
+.stage { position: relative; min-height: 0; }
+.card {
+  position: absolute; inset: 0; background: var(--card); border-radius: 22px; box-shadow: var(--shadow);
+  overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; user-select: none;
+  display: flex; flex-direction: column; will-change: transform;
+}
+.card.under { transform: translateY(10px) scale(.955); opacity: .7; pointer-events: none; box-shadow: none; }
+.card.anim { transition: transform .26s cubic-bezier(.2,.7,.3,1), opacity .26s; }
+.card.enter { animation: enter .28s cubic-bezier(.2,.7,.3,1); }
+@keyframes enter { from { transform: translateX(-30%) rotate(-3deg); opacity: 0; } }
+.stripe { height: 6px; background: var(--cat); flex: none; }
+.inner { padding: 20px 20px 22px; display: grid; gap: 16px; align-content: start; }
+.chip {
+  justify-self: start; font-size: 12px; font-weight: 600; letter-spacing: .04em; color: var(--cat);
+  border: 1.5px solid var(--cat); border-radius: 999px; padding: 3px 10px;
+}
+.figure { display: grid; gap: 2px; }
+.figure .num { font-family: var(--f-num); font-weight: 600; font-size: clamp(34px, 11vw, 46px); line-height: 1.05; color: var(--cat); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.figure .lab { font-size: 13px; color: var(--muted); }
+h2 { margin: 0; font-size: 23px; line-height: 1.35; font-weight: 700; text-wrap: balance; word-break: keep-all; }
+ul.pts { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+ul.pts li { position: relative; padding-left: 16px; font-size: 15.5px; line-height: 1.6; word-break: keep-all; }
+ul.pts li::before { content: ""; position: absolute; left: 2px; top: .7em; width: 6px; height: 6px; border-radius: 50%; background: var(--cat); }
+.why { background: var(--soft); border-radius: 14px; padding: 12px 14px; font-size: 14.5px; line-height: 1.6; word-break: keep-all; }
+.why b { display: block; font-size: 12px; letter-spacing: .06em; color: var(--cat); margin-bottom: 2px; }
+.src { font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px 12px; }
+.src a { color: var(--muted); text-underline-offset: 2px; }
+
+/* cover */
+.cover .inner { gap: 18px; }
+.cover .date { font-family: var(--f-num); font-size: 13px; color: var(--muted); letter-spacing: .04em; }
+.cover h1 { margin: 0; font-size: 30px; line-height: 1.3; font-weight: 700; word-break: keep-all; text-wrap: balance; }
+.toc { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.toc li button {
+  width: 100%; display: grid; grid-template-columns: 26px 1fr; gap: 8px; align-items: baseline; text-align: left;
+  background: none; border: 0; padding: 9px 4px; border-bottom: 1px solid var(--line); color: var(--ink);
+  font: 500 15px/1.45 var(--f-text); cursor: pointer; word-break: keep-all;
+}
+.toc li:last-child button { border-bottom: 0; }
+.toc .n { font-family: var(--f-num); font-size: 12px; color: var(--c); font-weight: 600; }
+.hint { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.hint svg { flex: none; animation: nudge 1.6s ease-in-out infinite; }
+@keyframes nudge { 50% { transform: translateX(-6px); } }
+
+.end .inner { align-content: center; min-height: 100%; box-sizing: border-box; text-align: center; justify-items: center; }
+.end h2 { font-size: 24px; }
+.end p { margin: 0; color: var(--muted); font-size: 14.5px; line-height: 1.6; word-break: keep-all; }
+
+.refresh { display: grid; gap: 8px; padding-top: 4px; width: 100%; }
+.rbtn {
+  height: 50px; border-radius: 14px; border: 1.5px solid var(--accent); background: transparent; color: var(--accent);
+  font: 600 15.5px var(--f-text); display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;
+}
+.rbtn:disabled { opacity: .55; cursor: default; }
+.rstatus { margin: 0; font-size: 13px; line-height: 1.55; color: var(--muted); word-break: keep-all; text-align: left; }
+.rstatus.err { color: var(--c-sec); }
+.controls { display: grid; grid-template-columns: 1fr 1.6fr; gap: 10px; }
+.controls button {
+  height: 54px; border-radius: 16px; border: 1.5px solid var(--line); background: var(--card); color: var(--ink);
+  font: 600 16px var(--f-text); display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;
+}
+.controls button.next { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.controls button:disabled { opacity: .35; cursor: default; }
+button:focus-visible, a:focus-visible { outline: 2.5px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  .card.anim, .card.enter, .hint svg { transition: none; animation: none; }
+}
+html, body { margin: 0; }
+.app { padding-top: max(10px, env(safe-area-inset-top, 0px)); padding-bottom: max(12px, env(safe-area-inset-bottom, 0px)); }
+.loading .inner { align-content: center; min-height: 100%; box-sizing: border-box; text-align: center; justify-items: center; color: var(--muted); }
+.panel { display: grid; gap: 8px; width: 100%; text-align: left; border-top: 1px solid var(--line); padding-top: 14px; }
+.panel h3 { margin: 0; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+.panel h3 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.panel h3 .dot.on { background: var(--c-soc); }
+.panel p { margin: 0; font-size: 13.5px; line-height: 1.6; color: var(--muted); word-break: keep-all; text-align: left; }
+.panel ol { margin: 0; padding-left: 20px; font-size: 13.5px; line-height: 1.7; color: var(--ink); word-break: keep-all; }
+.code { font-family: var(--f-num); font-size: 11px; line-height: 1.45; background: var(--soft); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; max-height: 84px; overflow: auto; word-break: break-all; user-select: all; -webkit-user-select: all; color: var(--ink); }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.rbtn.solid { background: var(--accent); color: #fff; border-color: var(--accent); }
+.rbtn.small { height: 44px; font-size: 14.5px; }
+.linkbtn { background: none; border: 0; padding: 4px 0; color: var(--accent); font: 600 13.5px var(--f-text); text-align: left; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="bars" id="bars" aria-hidden="true"></div>
+    <div class="meta"><b id="dateLabel">이슈 카드</b><span class="count" id="count"></span></div>
+  </header>
+  <main class="stage" id="stage" aria-live="polite"></main>
+  <nav class="controls">
+    <button id="prev" type="button" aria-label="이전 이슈">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>이전
+    </button>
+    <button id="next" class="next" type="button" aria-label="다음 이슈">다음
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+    </button>
+  </nav>
+</div>
+
+<script>
+(function () {
+  var VAPID_PUBLIC = 'BA8P9fwi0-zCuWnbcrGziNszFg_6qSnRK2uqmKkSglrp_qjv0oI93DoqJ-fH4MHKCVhIwGUF19bu2uQSHZS70Eo';
+  var CLAUDE_REFRESH_URL = 'https://claude.ai/artifact/BoJLPa1UdMstYCaAk2Dr1k';
+  var catVar = { econ: '--c-econ', pol: '--c-pol', soc: '--c-soc', world: '--c-world', tech: '--c-tech', sec: '--c-sec', biz: '--c-biz', job: '--c-job' };
+  var data = null, slides = [{ type: 'loading' }], i = 0, cur;
+  var stage = document.getElementById('stage');
+  var bars = document.getElementById('bars');
+
+  function ls(k, v) { try { if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { return null; } }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function col(cat) { return 'var(' + (catVar[cat] || '--accent') + ')'; }
+
+  /* ---------- 데이터 불러오기 ---------- */
+  function setData(d, keepPos) {
+    var changed = !data || data.generatedAt !== d.generatedAt;
+    data = d;
+    slides = [{ type: 'cover' }].concat(d.issues.map(function (x) { return Object.assign({ type: 'issue' }, x); }), [{ type: 'end' }]);
+    if (changed && !keepPos) {
+      i = 0;
+      var saved = parseInt(ls('issue-pos-' + d.generatedAt), 10);
+      if (saved > 0 && saved < slides.length) i = saved;
+    }
+    if (i >= slides.length) i = 0;
+    bars.innerHTML = slides.map(function () { return '<span></span>'; }).join('');
+    document.getElementById('dateLabel').textContent = d.dateLabel + ' 이슈';
+    render(false);
+  }
+  var cached = ls('issue-data');
+  if (cached) { try { setData(JSON.parse(cached)); } catch (e) {} }
+
+  var loadingNow = false, refreshMsg = '', refreshKind = '';
+  function load(manual) {
+    if (loadingNow) return Promise.resolve();
+    loadingNow = true;
+    if (manual) { refreshMsg = '최신 소식을 확인하는 중이에요…'; refreshKind = ''; rerenderIfPanel(); }
+    return fetch('data/today.json?t=' + Date.now(), { cache: 'no-store' }).then(function (r) {
+      if (!r.ok) throw new Error(r.status);
+      return r.json();
+    }).then(function (d) {
+      var isNew = !data || d.generatedAt !== data.generatedAt;
+      ls('issue-data', JSON.stringify(d));
+      if (manual) {
+        refreshMsg = isNew ? '새 소식으로 바꿨어요.' : '지금 보고 있는 게 가장 최신 소식이에요. 더 새로 만들고 싶으면 아래 "지금 새로 만들기"를 눌러 주세요.';
+        refreshKind = isNew ? 'ok' : 'same';
+      }
+      if (isNew) setData(d); else rerenderIfPanel();
+    }).catch(function () {
+      if (manual) { refreshMsg = '인터넷 연결을 확인해 주세요. 저장된 카드를 보여드리고 있어요.'; refreshKind = 'err'; rerenderIfPanel(); }
+      if (!data) { slides = [{ type: 'error' }]; i = 0; render(false); }
+    }).then(function () { loadingNow = false; rerenderIfPanel(); });
+  }
+  function rerenderIfPanel() { if (data && slides[i] && slides[i].type !== 'issue') render(false); }
+
+  /* ---------- 설치·알림 ---------- */
+  var ua = navigator.userAgent;
+  var isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+  var pushOK = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  var installEvt = null, sub = null, pushBusy = false, pushErr = '', copied = false;
+
+  window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); installEvt = e; rerenderIfPanel(); });
+  window.addEventListener('appinstalled', function () { installEvt = null; rerenderIfPanel(); });
+
+  var swReady = null;
+  if ('serviceWorker' in navigator) {
+    swReady = navigator.serviceWorker.register('sw.js').then(function () { return navigator.serviceWorker.ready; });
+    swReady.then(function (reg) { return reg.pushManager && reg.pushManager.getSubscription(); }).then(function (s) { sub = s || null; rerenderIfPanel(); }, function () {});
+    navigator.serviceWorker.addEventListener('message', function (e) { if (e.data === 'refresh') load(false); });
+  }
+
+  function b64ToBytes(b64) {
+    var pad = '='.repeat((4 - b64.length % 4) % 4), s = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
+    var a = new Uint8Array(s.length); for (var k = 0; k < s.length; k++) a[k] = s.charCodeAt(k); return a;
+  }
+  function subCode() { return sub ? JSON.stringify(sub.toJSON()) : ''; }
+
+  function enablePush() {
+    if (pushBusy) return;
+    pushBusy = true; pushErr = ''; render(false);
+    Notification.requestPermission().then(function (p) {
+      if (p !== 'granted') throw new Error('denied');
+      return swReady;
+    }).then(function (reg) {
+      return reg.pushManager.getSubscription().then(function (s) {
+        return s || reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(VAPID_PUBLIC) });
+      });
+    }).then(function (s) { sub = s; }, function (e) {
+      pushErr = (e && e.message === 'denied') ? '알림 권한이 꺼져 있어요. 휴대폰 설정에서 이 앱의 알림을 허용한 뒤 다시 눌러 주세요.' : '알림을 켜지 못했어요. 잠시 뒤 다시 눌러 주세요.';
+    }).then(function () { pushBusy = false; render(false); });
+  }
+  function copyCode() {
+    var t = subCode();
+    var done = function () { copied = true; render(false); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(done, function () { selectCode(); });
+    else selectCode();
+  }
+  function selectCode() {
+    var el = stage.querySelector('.code'); if (!el) return;
+    var r = document.createRange(); r.selectNodeContents(el); var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+  }
+
+  function pushPanel() {
+    if (isIOS && !standalone) {
+      return '<div class="panel"><h3><span class="dot"></span>앱으로 설치하기</h3>' +
+        '<p>아이폰은 홈 화면에 추가해야 알림을 받을 수 있어요.</p>' +
+        '<ol><li>Safari 아래쪽 공유 버튼(네모에 위 화살표)을 누르기</li><li>"홈 화면에 추가" 누르기</li><li>홈 화면에 생긴 "이슈 카드" 아이콘으로 열기</li></ol></div>';
+    }
+    var install = installEvt ? '<button type="button" class="rbtn small" data-act="install">홈 화면에 앱 설치</button>' : '';
+    if (!pushOK) return install ? '<div class="panel"><h3><span class="dot"></span>앱 설치</h3>' + install + '</div>' : '';
+    var perm = Notification.permission;
+    if (sub && perm === 'granted') {
+      var registered = ls('push-registered') === sub.endpoint;
+      if (registered) {
+        return '<div class="panel"><h3><span class="dot on"></span>알림 켜짐</h3><p>평일 오전 7시 20분에 "이슈 뉴스 도착" 알림이 와요. 공휴일에는 쉬어요.</p>' + install +
+          '<button type="button" class="linkbtn" data-act="showcode">알림 등록 코드 다시 보기</button></div>';
+      }
+      return '<div class="panel"><h3><span class="dot on"></span>마지막 단계: 알림 등록</h3>' +
+        '<p>아래 코드를 복사해서 Claude 대화창에 붙여넣어 보내 주세요. 등록되면 테스트 알림이 한 번 와요.</p>' +
+        '<div class="code">' + esc(subCode()) + '</div>' +
+        '<div class="row2"><button type="button" class="rbtn small solid" data-act="copy">' + (copied ? '복사됨 ✓' : '코드 복사') + '</button>' +
+        '<button type="button" class="rbtn small" data-act="registered">보냈어요</button></div>' + install + '</div>';
+    }
+    return '<div class="panel"><h3><span class="dot"></span>알림 꺼짐</h3>' +
+      '<p>알림을 켜면 평일 아침 새 카드가 도착할 때 알려 드려요.</p>' +
+      '<button type="button" class="rbtn small solid" data-act="push"' + (pushBusy ? ' disabled' : '') + '>' + (pushBusy ? '켜는 중…' : '알림 켜기') + '</button>' +
+      (pushErr ? '<p class="rstatus err">' + esc(pushErr) + '</p>' : '') + install + '</div>';
+  }
+
+  function refreshBlock() {
+    var msg = refreshMsg || ('이 카드는 ' + fmtTime(data.generatedAt) + '에 만들어졌어요.');
+    return '<div class="refresh"><button type="button" class="rbtn" data-act="refresh"' + (loadingNow ? ' disabled' : '') + '>' +
+      '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>새로운 소식 받기</button>' +
+      '<p class="rstatus ' + (refreshKind === 'err' ? 'err' : '') + '">' + esc(msg) + '</p>' +
+      (refreshKind === 'same' ? '<a class="linkbtn" href="' + CLAUDE_REFRESH_URL + '" target="_blank" rel="noopener">지금 새로 만들기 (Claude에서 열림)</a>' : '') + '</div>';
+  }
+  function fmtTime(iso) {
+    var ms = Date.parse(iso); if (isNaN(ms)) return '오늘 아침';
+    var t = new Date(ms + 9 * 3600 * 1000); // 한국 시간으로 표시
+    var h = t.getUTCHours(), m = t.getUTCMinutes();
+    return (t.getUTCMonth() + 1) + '월 ' + t.getUTCDate() + '일 ' + (h < 12 ? '오전 ' : '오후 ') + ((h % 12) || 12) + ':' + String(m).padStart(2, '0');
+  }
+
+  /* ---------- 카드 그리기 ---------- */
+  function html(s) {
+    if (s.type === 'loading') return '<div class="stripe" style="--cat:var(--ink)"></div><div class="inner"><p>오늘의 이슈를 불러오는 중이에요…</p></div>';
+    if (s.type === 'error') return '<div class="stripe" style="--cat:var(--c-sec)"></div><div class="inner"><p>카드를 불러오지 못했어요.<br>인터넷 연결을 확인한 뒤 다시 열어 주세요.</p></div>';
+    if (s.type === 'cover') {
+      var toc = data.issues.map(function (x, k) {
+        return '<li><button type="button" data-jump="' + (k + 1) + '" style="--c:' + col(x.cat) + '"><span class="n">' + String(k + 1).padStart(2, '0') + '</span><span>' + esc(x.title) + '</span></button></li>';
+      }).join('');
+      return '<div class="stripe" style="--cat:var(--ink)"></div><div class="inner">' +
+        '<div class="date">' + esc(data.date) + ' · 오전 7:20 브리핑</div>' +
+        '<h1>' + esc(data.headline) + '</h1>' +
+        '<div class="hint"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H5M10 6l-6 6 6 6"/></svg>책장처럼 왼쪽으로 넘기면 다음 이슈, 오른쪽으로 넘기면 이전 이슈</div>' +
+        '<ul class="toc">' + toc + '</ul>' + refreshBlock() + pushPanel() + '</div>';
+    }
+    if (s.type === 'end') {
+      return '<div class="stripe" style="--cat:var(--ink)"></div><div class="inner">' +
+        '<svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.6 2.6L16 9.5"/></svg>' +
+        '<h2>오늘 이슈 ' + data.issues.length + '개를 모두 봤어요</h2>' +
+        '<p>다음 브리핑은 다음 평일 오전 7시 20분에 도착합니다.<br>공휴일에는 쉬어 갑니다.</p>' +
+        '<div class="controls" style="grid-template-columns:1fr;width:100%"><button type="button" data-jump="0">처음부터 다시 보기</button></div>' + refreshBlock() + '</div>';
+    }
+    var pts = s.points.map(function (p) { return '<li>' + esc(p) + '</li>'; }).join('');
+    var src = (s.sources || []).map(function (x) { return '<a href="' + esc(x.u) + '" target="_blank" rel="noopener">' + esc(x.t) + '</a>'; }).join('');
+    return '<div class="stripe"></div><div class="inner">' +
+      '<span class="chip">' + esc(s.label) + '</span>' +
+      '<div class="figure"><div class="num">' + esc(s.num) + '</div><div class="lab">' + esc(s.numLabel) + '</div></div>' +
+      '<h2>' + esc(s.title) + '</h2>' +
+      '<ul class="pts">' + pts + '</ul>' +
+      '<div class="why"><b>왜 중요할까</b>' + esc(s.why) + '</div>' +
+      (src ? '<div class="src">출처 ' + src + '</div>' : '') + '</div>';
+  }
+
+  function makeCard(k, cls) {
+    var s = slides[k], el = document.createElement('article');
+    el.className = 'card ' + (s.type !== 'issue' ? s.type + ' ' : '') + (cls || '');
+    el.style.setProperty('--cat', s.cat ? col(s.cat) : 'var(--ink)');
+    el.innerHTML = html(s);
+    return el;
+  }
+
+  function render(enter) {
+    var keepScroll = cur && !enter && cur.__k === i ? cur.scrollTop : 0;
+    stage.innerHTML = '';
+    if (i + 1 < slides.length) stage.appendChild(makeCard(i + 1, 'under'));
+    cur = makeCard(i, enter ? 'enter' : '');
+    cur.__k = i;
+    stage.appendChild(cur);
+    cur.scrollTop = keepScroll;
+    bind(cur);
+    Array.prototype.forEach.call(bars.children, function (b, k) { b.classList.toggle('on', k <= i); });
+    var t = slides[i].type;
+    document.getElementById('count').textContent = !data ? '' : (t === 'cover' ? '표지' : (t === 'end' ? '끝' : i + ' / ' + data.issues.length));
+    document.getElementById('prev').disabled = i === 0;
+    document.getElementById('next').disabled = i === slides.length - 1;
+    if (data) ls('issue-pos-' + data.generatedAt, String(i));
+  }
+
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function go(dir) {
+    var n = i + dir;
+    if (n < 0 || n >= slides.length) { snap(); return; }
+    if (dir > 0 && !reduce) {
+      cur.classList.add('anim');
+      cur.style.transform = 'translateX(-115%) rotate(-8deg)';
+      cur.style.opacity = '0';
+      var under = stage.querySelector('.under');
+      if (under) { under.classList.add('anim'); under.style.transform = 'none'; under.style.opacity = '1'; }
+      setTimeout(function () { i = n; render(false); }, 240);
+    } else { i = n; render(dir < 0 && !reduce); }
+  }
+  function jump(k) { i = k; render(false); }
+  function snap() { if (!cur) return; cur.classList.add('anim'); cur.style.transform = ''; setTimeout(function () { cur && cur.classList.remove('anim'); }, 270); }
+
+  function act(name) {
+    if (name === 'refresh') return load(true);
+    if (name === 'push') return enablePush();
+    if (name === 'copy') return copyCode();
+    if (name === 'registered') { if (sub) ls('push-registered', sub.endpoint); copied = false; return render(false); }
+    if (name === 'showcode') { ls('push-registered', null); return render(false); }
+    if (name === 'install' && installEvt) { installEvt.prompt(); installEvt.userChoice.then(function () { installEvt = null; render(false); }); }
+  }
+
+  function bind(el) {
+    var x0, y0, dx = 0, mode = null, id = null, moved = false;
+    el.addEventListener('pointerdown', function (e) { x0 = e.clientX; y0 = e.clientY; dx = 0; mode = null; id = e.pointerId; moved = false; el.classList.remove('anim'); });
+    el.addEventListener('pointermove', function (e) {
+      if (id !== e.pointerId || x0 == null) return;
+      var ddx = e.clientX - x0, ddy = e.clientY - y0;
+      if (!mode && (Math.abs(ddx) > 8 || Math.abs(ddy) > 8)) {
+        mode = Math.abs(ddx) > Math.abs(ddy) ? 'h' : 'v';
+        if (mode === 'h') { try { el.setPointerCapture(e.pointerId); } catch (err) {} }
+      }
+      if (mode === 'h') { dx = ddx; moved = true; el.style.transform = 'translateX(' + dx + 'px) rotate(' + (dx / 28) + 'deg)'; }
+    });
+    function end(e) {
+      if (id !== e.pointerId) return;
+      if (mode === 'h') { if (dx < -70) go(1); else if (dx > 70) go(-1); else snap(); }
+      x0 = null; mode = null; id = null;
+    }
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', end);
+    el.addEventListener('click', function (e) {
+      if (moved) { e.preventDefault(); e.stopPropagation(); moved = false; return; }
+      var a = e.target.closest('[data-act]');
+      if (a) { e.preventDefault(); act(a.getAttribute('data-act')); return; }
+      var j = e.target.closest('[data-jump]');
+      if (j) jump(parseInt(j.getAttribute('data-jump'), 10));
+    }, true);
+  }
+
+  document.getElementById('next').addEventListener('click', function () { go(1); });
+  document.getElementById('prev').addEventListener('click', function () { go(-1); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight') go(1);
+    if (e.key === 'ArrowLeft') go(-1);
+  });
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') load(false); });
+  if (!data) render(false);
+  load(false);
+})();
+</script>
+</body>
+</html>
