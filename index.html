@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>아침 이슈 카드</title>
 <meta name="description" content="원하는 시간에 한 손으로 넘겨 보는 이슈 카드">
 <link rel="manifest" href="manifest.webmanifest">
@@ -172,7 +172,7 @@ body.in-setup .app { grid-template-rows: auto 1fr; }
 .linkbtn { background: none; border: 0; padding: 4px 0; color: var(--accent); font: 600 13.5px var(--f-text); text-align: left; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
 
 /* 더블탭 확대 막기 */
-html, body, button, a, .card { touch-action: manipulation; }
+html, body, button, a, .card, .controls, .controls * , header, header * { touch-action: manipulation; }
 .card { touch-action: pan-y; }
 /* 글자 크기 */
 .card .inner { zoom: var(--zoom, 1); }
@@ -223,6 +223,11 @@ html, body, button, a, .card { touch-action: manipulation; }
   </nav>
 </div>
 
+<script>
+/* iOS 더블탭 확대 방지: 짧은 간격의 두 번째 탭은 확대 대신 클릭으로 처리 */
+(function(){var last=0;document.addEventListener('touchend',function(e){var now=Date.now();if(now-last<350){var t=e.target;if(!(t.closest&&t.closest('input,textarea,select'))){e.preventDefault();var b=t.closest&&t.closest('button,a,[data-act]');if(b)b.click();}}last=now;},{passive:false});
+['gesturestart','gesturechange','dblclick'].forEach(function(n){document.addEventListener(n,function(e){e.preventDefault();},{passive:false});});})();
+</script>
 <script>
 (function () {
   var VAPID_PUBLIC = 'BA8P9fwi0-zCuWnbcrGziNszFg_6qSnRK2uqmKkSglrp_qjv0oI93DoqJ-fH4MHKCVhIwGUF19bu2uQSHZS70Eo';

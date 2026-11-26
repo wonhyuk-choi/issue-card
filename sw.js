@@ -1,5 +1,5 @@
 // 아침 이슈 카드 서비스 워커: 오프라인 캐시 + 푸시 알림
-var VERSION = 'v12';
+var VERSION = 'v13';
 var SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 
 self.addEventListener('install', function (e) {
