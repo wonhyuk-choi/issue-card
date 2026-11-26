@@ -7,6 +7,8 @@ const adminKey = crypto.createHash('sha256').update(process.env.VAPID_PRIVATE_KE
 const r = await fetch(url + '/admin/list', { headers: { Authorization: 'Bearer ' + adminKey } });
 if (!r.ok) { console.error('목록을 못 가져왔습니다', r.status); process.exit(1); }
 const recs = await r.json();
+// 등록 현황 요약 (개인 정보 없이)
+for (const x of recs) console.log(`등록: ${x.id} · 알림 ${x.sub ? (x.paused ? '일시중지' : '켜짐') : '안 켬'} · 맞춤 설정 ${x.profile ? '있음' : '없음'}${x.profile && x.profile.schedule ? ' · ' + x.profile.schedule.time + ' ' + JSON.stringify(x.profile.schedule.days) : ''} · 등록일 ${String(x.createdAt || '').slice(0, 10)}`);
 const old = JSON.parse(fs.readFileSync('push/profiles.json', 'utf8'));
 const byId = new Map(old.map((p) => [p.id, p]));
 for (const rec of recs) {
