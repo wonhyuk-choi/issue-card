@@ -41,7 +41,8 @@
      "t": "아시아엔 오늘의 신문",
      "u": "https://kor.theasian.asia/archives/422481"
     }
-   ]
+   ],
+   "tldr": "오늘 금리 결정, 가계대출 금리는 이미 3년 만에 5%를 넘었습니다."
   },
   {
    "cat": "world",
@@ -64,7 +65,8 @@
      "t": "아시아엔",
      "u": "https://kor.theasian.asia/archives/422481"
     }
-   ]
+   ],
+   "tldr": "미국이 한국 등에 과잉생산 관세를 추진해 수출 업종이 다시 흔들립니다."
   },
   {
    "cat": "world",
@@ -83,7 +85,8 @@
      "t": "아시아엔 오늘의 신문",
      "u": "https://kor.theasian.asia/archives/422481"
     }
-   ]
+   ],
+   "tldr": "미국 물가가 2023년 이후 최고로 올라 12월 금리 인상 가능성이 커졌습니다."
   },
   {
    "cat": "soc",
@@ -106,7 +109,8 @@
      "t": "아시아엔",
      "u": "https://kor.theasian.asia/archives/422481"
     }
-   ]
+   ],
+   "tldr": "오늘부터 철도 준법투쟁으로 KTX와 일부 수도권 전철이 늦어질 수 있습니다."
   },
   {
    "cat": "pol",
@@ -125,7 +129,8 @@
      "t": "아시아엔 오늘의 신문",
      "u": "https://kor.theasian.asia/archives/422481"
     }
-   ]
+   ],
+   "tldr": "대법원장 탄핵 추진에 판사들이 반발해 30일 법관회의에서 논의합니다."
   },
   {
    "cat": "sec",
@@ -148,7 +153,8 @@
      "t": "아시아엔",
      "u": "https://kor.theasian.asia/archives/422481"
     }
-   ]
+   ],
+   "tldr": "러시아 전략폭격기가 울릉도에 이례적으로 가까이 다가와 정부가 항의했습니다."
   },
   {
    "cat": "biz",
@@ -167,7 +173,8 @@
      "t": "아시아엔 오늘의 신문",
      "u": "https://kor.theasian.asia/archives/422481"
     }
-   ]
+   ],
+   "tldr": "홈플러스 온라인 배송이 멈췄고, 저축은행 해킹으로 8만6천여 명 정보가 샜습니다."
   },
   {
    "cat": "tech",
@@ -190,7 +197,8 @@
      "t": "아시아엔",
      "u": "https://kor.theasian.asia/archives/422481"
     }
-   ]
+   ],
+   "tldr": "젠슨 황이 11일 만에 복귀했지만 의회 조사가 이어져 AI주 불안은 남았습니다."
   },
   {
    "cat": "tech",
@@ -209,7 +217,8 @@
      "t": "Writingmate AI 주간 뉴스",
      "u": "https://writingmate.ai/blog/ai-news-week-of-2026-11-23"
     }
-   ]
+   ],
+   "tldr": "GPT-6.2는 평가가 엇갈리고, 구글 Gemini 4 Neon은 가성비로 주목받습니다."
   },
   {
    "cat": "world",
@@ -228,7 +237,8 @@
      "t": "아시아엔 오늘의 신문",
      "u": "https://kor.theasian.asia/archives/422481"
     }
-   ]
+   ],
+   "tldr": "대만 선거를 앞두고 중국 군사활동이 이어지고 화웨이는 미국서 일부 유죄를 받았습니다."
   },
   {
    "cat": "job",
@@ -247,7 +257,8 @@
      "t": "Security Boulevard · Daily OT Security News",
      "u": "https://securityboulevard.com/2026/11/daily-ot-security-news-november-18-2026/"
     }
-   ]
+   ],
+   "tldr": "수처리 SCADA 취약점 권고와 OT망 속 소비자 기기 6만5천 대가 확인됐습니다."
   },
   {
    "cat": "job",
