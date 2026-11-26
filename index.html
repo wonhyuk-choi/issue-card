@@ -240,6 +240,7 @@ body.in-setup .app { grid-template-rows: auto 1fr; }
     document.getElementById('dateLabel').textContent = d.dateLabel + ' 이슈';
     render(false);
   }
+  try { var qi = new URLSearchParams(location.search).get('invite'); if (qi) ls('invite', qi); } catch (e) {}
   var cached = ls('issue-data-' + dataFile());
   if (cached) { try { setData(JSON.parse(cached)); } catch (e) {} }
 
@@ -343,12 +344,12 @@ body.in-setup .app { grid-template-rows: auto 1fr; }
     }).then(function (s) {
       sub = s;
       if (!workerUrl) return;
-      return api('/register', { sub: s.toJSON(), profile: form }).then(function (r) {
+      return api('/register', { sub: s.toJSON(), profile: form, invite: ls('invite') || '' }).then(function (r) {
         profileId = r.id; paused = false; ls('profile-id', profileId); ls('push-registered', s.endpoint); ls('profile-dirty', null); offDone = false;
         if (raw) setData(raw, true);
       });
     }).then(null, function (e) {
-      pushErr = (e && e.message === 'denied') ? '알림 권한이 꺼져 있어요. 휴대폰 설정에서 이 앱의 알림을 허용한 뒤 다시 눌러 주세요.' : '알림을 켜지 못했어요. 잠시 뒤 다시 눌러 주세요.';
+      pushErr = (e && e.message === 'invite') ? '초대 코드가 맞지 않아요. 앱을 알려준 사람에게 코드를 확인해 주세요.' : (e && e.message === 'denied') ? '알림 권한이 꺼져 있어요. 휴대폰 설정에서 이 앱의 알림을 허용한 뒤 다시 눌러 주세요.' : '알림을 켜지 못했어요. 잠시 뒤 다시 눌러 주세요.';
     }).then(function () { pushBusy = false; render(false); });
   }
   function copyCode() {
@@ -403,6 +404,7 @@ body.in-setup .app { grid-template-rows: auto 1fr; }
     }
     return '<div class="panel"><h3><span class="dot"></span>알림 꺼짐</h3>' +
       '<p>' + (offDone ? '알림을 껐어요. 카드는 앱을 열면 계속 볼 수 있어요. 다시 켜면 새 코드를 한 번 더 보내 주셔야 해요.' : '알림을 켜면 ' + esc(schedLabel()) + '에 새 카드가 도착할 때 알려 드려요.') + '</p>' +
+      (workerUrl ? '<label style="font-size:13px;font-weight:700;display:grid;gap:6px">초대 코드<input id="f-invite" type="text" autocomplete="off" autocapitalize="off" value="' + esc(ls('invite') || '') + '" style="font:400 16px var(--f-text);color:var(--ink);background:var(--soft);border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;user-select:text;-webkit-user-select:text"></label>' : '') +
       '<button type="button" class="rbtn small solid" data-act="push"' + (pushBusy ? ' disabled' : '') + '>' + (pushBusy ? '켜는 중…' : '알림 켜기') + '</button>' +
       (pushErr ? '<p class="rstatus err">' + esc(pushErr) + '</p>' : '') + install + '</div>';
   }
@@ -536,7 +538,7 @@ body.in-setup .app { grid-template-rows: auto 1fr; }
     }
     if (name === 'skip-profile') { ls('profile-skip', '1'); showSetup = false; i = 0; return setData(raw, true); }
     if (name === 'edit-profile') { showSetup = true; i = 0; return setData(raw, true); }
-    if (name === 'push') return enablePush();
+    if (name === 'push') { var iv = stage.querySelector('#f-invite'); if (iv) ls('invite', iv.value.trim()); return enablePush(); }
     if (name === 'copy') return copyCode();
     if (name === 'registered') { if (sub) ls('push-registered', sub.endpoint); ls('profile-dirty', null); copied = false; return render(false); }
     if (name === 'toggle' && workerUrl && sub && !toggling) {

@@ -46,6 +46,7 @@ form.append('metadata', new Blob([JSON.stringify({
     { type: 'kv_namespace', name: 'KV', namespace_id: ns.id },
     { type: 'secret_text', name: 'ADMIN_KEY', text: adminKey },
     { type: 'plain_text', name: 'ALLOW_ORIGIN', text: ORIGIN },
+    ...(process.env.INVITE_CODE ? [{ type: 'secret_text', name: 'INVITE_CODE', text: process.env.INVITE_CODE.trim() }] : []),
   ],
 })], { type: 'application/json' }));
 form.append('worker.js', new Blob([fs.readFileSync('worker/worker.js', 'utf8')], { type: 'application/javascript+module' }), 'worker.js');

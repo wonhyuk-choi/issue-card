@@ -28,6 +28,8 @@ export default {
         const k = await keyOf(sub.endpoint);
         let rec = await env.KV.get(k, 'json');
         if (!rec) {
+          // 새 기기는 초대 코드가 맞아야 등록됨 (이미 등록된 기기는 그대로)
+          if (env.INVITE_CODE && String(body.invite || '').trim() !== env.INVITE_CODE) return json({ error: 'invite' }, 403);
           const n = (await env.KV.list({ prefix: 'sub:' })).keys.length;
           if (n >= MAX_SUBS) return json({ error: 'full' }, 429);
           rec = { id: await nextId(env), createdAt: now() };
