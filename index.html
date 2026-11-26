@@ -178,9 +178,12 @@ html, body, button, a, .card, .controls, .controls * , header, header * { touch-
 .card .inner { zoom: var(--zoom, 1); }
 /* 보기 설정 버튼과 시트 */
 .meta .right { display: flex; align-items: center; gap: 10px; }
+.sheet .sum { margin: 2px 0 8px; font-size: 14px; color: var(--muted); line-height: 1.5; }
+.sheet-push .panel { margin: 14px 0 4px; }
+.sheet .rbtn.small { width: 100%; }
 .aa { font: 700 13px var(--f-text); color: var(--ink); background: var(--card); border: 1.5px solid var(--line); border-radius: 999px; padding: 4px 10px; cursor: pointer; }
 .sheet-back { position: fixed; inset: 0; background: rgba(10, 14, 20, .45); z-index: 20; display: flex; align-items: flex-end; justify-content: center; }
-.sheet { width: 100%; max-width: 520px; background: var(--card); border-radius: 22px 22px 0 0; padding: 18px max(16px, env(safe-area-inset-left, 0px)) max(22px, env(safe-area-inset-bottom, 0px)); box-sizing: border-box; display: grid; gap: 16px; }
+.sheet { width: 100%; max-width: 520px; background: var(--card); border-radius: 22px 22px 0 0; padding: 18px max(16px, env(safe-area-inset-left, 0px)) max(22px, env(safe-area-inset-bottom, 0px)); box-sizing: border-box; display: grid; gap: 12px; max-height: 88dvh; overflow-y: auto; overscroll-behavior: contain; }
 .sheet h3 { margin: 0; font-size: 17px; }
 .sheet b { font-size: 13px; color: var(--muted); }
 .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; background: var(--soft); border-radius: 14px; padding: 4px; }
@@ -210,7 +213,7 @@ html, body, button, a, .card, .controls, .controls * , header, header * { touch-
 <div class="app">
   <header class="top">
     <div class="bars" id="bars" aria-hidden="true"></div>
-    <div class="meta"><b id="dateLabel">이슈 카드</b><span class="right"><span class="count" id="count"></span><button type="button" class="aa" id="viewBtn" aria-label="보기 설정">Aa 보기</button></span></div>
+    <div class="meta"><b id="dateLabel">이슈 카드</b><span class="right"><span class="count" id="count"></span><button type="button" class="aa" id="viewBtn" aria-label="설정">⚙︎ 설정</button></span></div>
   </header>
   <main class="stage" id="stage" aria-live="polite"></main>
   <nav class="controls">
@@ -252,14 +255,22 @@ html, body, button, a, .card, .controls, .controls * , header, header * { touch-
   if (typeof view.zoom !== 'number') view.zoom = 1;
   function applyView() { document.documentElement.style.setProperty('--zoom', String(view.zoom)); ls('view', JSON.stringify(view)); }
   applyView();
-  function openSheet() {
-    var old = document.querySelector('.sheet-back'); if (old) old.remove();
-    var back = document.createElement('div'); back.className = 'sheet-back';
+  function sheetHtml() {
     var seg = function (key, opts) { return '<div class="seg">' + opts.map(function (o) { return '<button type="button" data-k="' + key + '" data-v="' + o[1] + '" aria-pressed="' + (String(view[key]) === String(o[1])) + '">' + o[0] + '</button>'; }).join('') + '</div>'; };
-    back.innerHTML = '<div class="sheet" role="dialog" aria-label="보기 설정"><h3>보기 설정</h3>' +
+    var mine = form ? '<p class="sum">' + esc(form.job || '직업 미입력') + ' · ' + esc((form.interests || []).slice(0, 3).join(', ') + ((form.interests || []).length > 3 ? ' 외' : '')) + '<br>' + esc(schedLabel()) + '</p>' : '<p class="sum">아직 맞춤 설정을 하지 않았어요.</p>';
+    return '<div class="sheet" role="dialog" aria-label="설정"><h3>설정</h3>' +
+      '<b>맞춤 설정</b>' + mine + '<button type="button" class="rbtn small" data-act="edit-profile">직업 · 관심분야 · 알림 시간 ' + (form ? '바꾸기' : '정하기') + '</button>' +
+      '<div class="sheet-push">' + pushPanelInner() + '</div>' +
       '<b>보기 방식</b>' + seg('mode', [['카드뉴스', 'cn'], ['신문', 'paper']]) +
       '<b>글자 크기</b>' + seg('zoom', ZOOMS) +
       '<button type="button" class="done">닫기</button></div>';
+  }
+  var sheetBack = null;
+  function refreshSheet() { if (sheetBack && sheetBack.isConnected) sheetBack.innerHTML = sheetHtml(); }
+  function openSheet() {
+    var old = document.querySelector('.sheet-back'); if (old) old.remove();
+    var back = sheetBack = document.createElement('div'); back.className = 'sheet-back';
+    back.innerHTML = sheetHtml();
     back.addEventListener('click', function (e) {
       var b = e.target.closest('[data-k]');
       if (b) {
@@ -267,6 +278,16 @@ html, body, button, a, .card, .controls, .controls * , header, header * { touch-
         view[k] = k === 'zoom' ? parseFloat(v) : v; applyView();
         Array.prototype.forEach.call(back.querySelectorAll('[data-k="' + k + '"]'), function (x) { x.setAttribute('aria-pressed', String(x === b)); });
         if (data) render(false);
+        return;
+      }
+      var a = e.target.closest('[data-act]');
+      if (a) {
+        var name = a.getAttribute('data-act');
+        if (name === 'edit-profile') { back.remove(); return act(name); }
+        if (name === 'push') { var iv = back.querySelector('#f-invite'); if (iv) ls('invite', iv.value.trim()); }
+        var r = act(name); refreshSheet();
+        if (r && r.then) r.then(refreshSheet, refreshSheet);
+        setTimeout(refreshSheet, 1500);
         return;
       }
       if (e.target === back || e.target.closest('.done')) back.remove();
@@ -654,7 +675,7 @@ html, body, button, a, .card, .controls, .controls * , header, header * { touch-
     }
     if (name === 'skip-profile') { ls('profile-skip', '1'); showSetup = false; i = 0; return setData(raw, true); }
     if (name === 'edit-profile') { showSetup = true; i = 0; return setData(raw, true); }
-    if (name === 'push') { var iv = stage.querySelector('#f-invite'); if (iv) ls('invite', iv.value.trim()); return enablePush(); }
+    if (name === 'push') { var iv = stage.querySelector('#f-invite'); if (iv && iv.value.trim()) ls('invite', iv.value.trim()); return enablePush(); }
     if (name === 'copy') return copyCode();
     if (name === 'registered') { if (sub) ls('push-registered', sub.endpoint); ls('profile-dirty', null); copied = false; return render(false); }
     if (name === 'toggle' && workerUrl && sub && !toggling) {
