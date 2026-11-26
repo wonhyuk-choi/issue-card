@@ -2,9 +2,17 @@
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 
-const A = (process.env.CLOUDFLARE_ACCOUNT_ID || '').trim();
+let A = (process.env.CLOUDFLARE_ACCOUNT_ID || '').trim();
 const T = (process.env.CLOUDFLARE_API_TOKEN || '').trim();
-if (!A || !T) { console.log('CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID 시크릿이 아직 없어 배포를 건너뜁니다.'); process.exit(0); }
+if (!T) { console.log('CLOUDFLARE_API_TOKEN 시크릿이 아직 없어 배포를 건너뜁니다.'); process.exit(0); }
+if (!A) {
+  // Account ID 시크릿이 없으면 토큰으로 계정을 찾음
+  const r = await fetch('https://api.cloudflare.com/client/v4/accounts', { headers: { Authorization: `Bearer ${T}` } });
+  const j = await r.json().catch(() => ({}));
+  A = (j.result && j.result[0] && j.result[0].id) || '';
+  if (!A) { console.error('계정을 찾지 못했습니다', r.status, JSON.stringify(j.errors || j)); process.exit(1); }
+  console.log('계정 찾음');
+}
 const NAME = 'issue-card';
 const ORIGIN = 'https://wonhyuk-choi.github.io';
 const adminKey = crypto.createHash('sha256').update(process.env.VAPID_PRIVATE_KEY || '').digest('hex');
