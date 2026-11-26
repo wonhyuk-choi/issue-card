@@ -127,6 +127,7 @@ function cleanProfile(p) {
     job: str(p.job, 60),
     interests: Array.isArray(p.interests) ? p.interests.slice(0, 15).map((x) => str(x, 30)) : [],
     note: str(p.note, 200),
+    light: p.light !== false,
     schedule: { time, days: cleanDays(s.days), holidays: s.holidays !== false },
   };
 }

@@ -440,6 +440,7 @@ body.in-setup .app { grid-template-rows: auto 1fr; }
         '<div style="display:grid;gap:8px"><b style="font-size:13px">관심분야 (여러 개 선택)</b><div class="chips">' + chips + '</div></div>' +
         '<div style="display:grid;gap:8px"><b style="font-size:13px">알림 받을 시간</b>' +
         '<input id="f-time" type="time" step="300" value="' + esc((f.schedule || DEFAULT_SCHED).time) + '">' +
+        '<div class="chips"><button type="button" data-light="1" aria-pressed="' + (f.light !== false) + '">가벼운 카드 2~3장 섞기 (연예·트렌드·생활)</button></div>' +
         '<b style="font-size:13px">받을 요일</b><div class="chips days">' + [1, 2, 3, 4, 5, 6, 0].map(function (n) { return '<button type="button" data-day="' + n + '" aria-pressed="' + (dayList(f.schedule || DEFAULT_SCHED).indexOf(n) >= 0) + '">' + DAY_NAMES[n] + '</button>'; }).join('') + '</div>' +
         '<div class="chips"><button type="button" data-hol="1" aria-pressed="' + ((f.schedule || DEFAULT_SCHED).holidays !== false) + '">공휴일엔 쉬기</button></div>' +
         '<p>이 시간에 맞춰 그날 카드를 새로 만들고 알림을 보내요.</p></div>' +
@@ -530,7 +531,8 @@ body.in-setup .app { grid-template-rows: auto 1fr; }
       var days = Array.prototype.filter.call(stage.querySelectorAll('[data-day]'), function (b) { return b.getAttribute('aria-pressed') === 'true'; }).map(function (b) { return +b.getAttribute('data-day'); });
       if (!days.length) days = [1, 2, 3, 4, 5];
       var hol = stage.querySelector('[data-hol]');
-      form = { job: job.trim(), interests: picks, note: note.trim(),
+      var lt = stage.querySelector('[data-light]');
+      form = { job: job.trim(), interests: picks, note: note.trim(), light: !lt || lt.getAttribute('aria-pressed') === 'true',
         schedule: { time: tm, days: days, holidays: !hol || hol.getAttribute('aria-pressed') === 'true' } };
       if (!profileId) sched = null;
       ls('profile-local', JSON.stringify(form));
@@ -584,6 +586,8 @@ body.in-setup .app { grid-template-rows: auto 1fr; }
       if (moved) { e.preventDefault(); e.stopPropagation(); moved = false; return; }
       var dd = e.target.closest('[data-day]');
       if (dd) { dd.setAttribute('aria-pressed', dd.getAttribute('aria-pressed') === 'true' ? 'false' : 'true'); return; }
+      var lb = e.target.closest('[data-light]');
+      if (lb) { lb.setAttribute('aria-pressed', lb.getAttribute('aria-pressed') === 'true' ? 'false' : 'true'); return; }
       var hb = e.target.closest('[data-hol]');
       if (hb) { hb.setAttribute('aria-pressed', hb.getAttribute('aria-pressed') === 'true' ? 'false' : 'true'); return; }
       var c = e.target.closest('[data-chip]');
