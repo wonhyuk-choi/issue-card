@@ -124,9 +124,9 @@ function cleanProfile(p) {
   const s = p.schedule || {};
   const time = /^\d{2}:\d{2}$/.test(s.time || '') ? s.time : '07:20';
   return {
-    job: str(p.job, 60),
+    job: str(p.job, 150),
     interests: Array.isArray(p.interests) ? p.interests.slice(0, 15).map((x) => str(x, 30)) : [],
-    note: str(p.note, 200),
+    note: str(p.note, 300),
     light: p.light !== false,
     schedule: { time, days: cleanDays(s.days), holidays: s.holidays !== false },
   };

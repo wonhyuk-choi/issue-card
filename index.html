@@ -238,7 +238,7 @@ html, body, button, a, .card, .controls, .controls * , header, header * { touch-
   var catVar = { econ: '--c-econ', pol: '--c-pol', soc: '--c-soc', world: '--c-world', tech: '--c-tech', sec: '--c-sec', biz: '--c-biz', job: '--c-job', ent: '--c-ent', trend: '--c-trend' };
   var raw = null, data = null, slides = [{ type: 'loading' }], i = 0, cur;
   var INTERESTS = ['경제·금리·환율', '정치·사회', '국제', '반도체·전자', 'IT·AI·소프트웨어', '제조·스마트팩토리', '에너지·전력', '자동차·모빌리티', '건설·부동산', '금융·투자', '바이오·헬스케어', '유통·소비재', '공공·교육', '게임·콘텐츠', '연예·방송', '영화·드라마·OTT', '음악·공연', '인터넷 밈·트렌드', '스포츠', '여행·맛집', '패션·뷰티', '생활 꿀팁·쇼핑', '취업·이직'];
-  var profileId = ls('profile-id') || null, profileChecked = false, showSetup = false;
+  var profileId = ls('profile-id') || null, profileChecked = false, showSetup = false, srvProfile = null;
   var form = (function () { try { return JSON.parse(ls('profile-local')) || null; } catch (e) { return null; } })();
   var stage = document.getElementById('stage');
   var bars = document.getElementById('bars');
@@ -257,7 +257,7 @@ html, body, button, a, .card, .controls, .controls * , header, header * { touch-
   applyView();
   function sheetHtml() {
     var seg = function (key, opts) { return '<div class="seg">' + opts.map(function (o) { return '<button type="button" data-k="' + key + '" data-v="' + o[1] + '" aria-pressed="' + (String(view[key]) === String(o[1])) + '">' + o[0] + '</button>'; }).join('') + '</div>'; };
-    var mine = form ? '<p class="sum">' + esc(form.job || '직업 미입력') + ' · ' + esc((form.interests || []).slice(0, 3).join(', ') + ((form.interests || []).length > 3 ? ' 외' : '')) + '<br>' + esc(schedLabel()) + '</p>' : '<p class="sum">아직 맞춤 설정을 하지 않았어요.</p>';
+    var mine = form ? '<p class="sum">' + esc((function (j) { j = (j || '직업 미입력').split(/[.。]/)[0]; return j.length > 28 ? j.slice(0, 27) + '…' : j; })(form.job)) + ' · ' + esc((form.interests || []).slice(0, 3).join(', ') + ((form.interests || []).length > 3 ? ' 외' : '')) + '<br>' + esc(schedLabel()) + '</p>' : '<p class="sum">아직 맞춤 설정을 하지 않았어요.</p>';
     return '<div class="sheet" role="dialog" aria-label="설정"><h3>설정</h3>' +
       '<b>맞춤 설정</b>' + mine + '<button type="button" class="rbtn small" data-act="edit-profile">직업 · 관심분야 · 알림 시간 ' + (form ? '바꾸기' : '정하기') + '</button>' +
       '<div class="sheet-push">' + pushPanelInner() + '</div>' +
@@ -431,7 +431,7 @@ html, body, button, a, .card, .controls, .controls * , header, header * { touch-
       workerUrl = res[3] && res[3].url || null;
       if (workerUrl && sub) {
         return api('/status', { endpoint: sub.endpoint }).then(function (st) {
-          if (st.registered) { profileId = st.id; paused = !!st.paused; ls('profile-id', profileId); ls('push-registered', sub.endpoint); }
+          if (st.registered) { profileId = st.id; paused = !!st.paused; if (st.profile && st.profile.interests) srvProfile = st.profile; ls('profile-id', profileId); ls('push-registered', sub.endpoint); }
           else ls('push-registered', null);
           return res;
         }, function () { return res; });
@@ -446,6 +446,13 @@ html, body, button, a, .card, .controls, .controls * , header, header * { touch-
       var profs = res[2] || [];
       var me = profs.filter(function (x) { return x.id === (profileId || 'p1'); })[0];
       if (me && me.schedule && (profileId || !form)) sched = me.schedule;
+      /* 등록된 기기는 저장소에 있는 내 맞춤 설정을 그대로 가져와 설정 화면에 채움 */
+      var srv = srvProfile || (profileId && me) || null;
+      if (srv && srv.interests && srv.interests.length) {
+        form = { job: srv.job || '', interests: srv.interests.slice(), note: srv.note || '', light: srv.light !== false, schedule: srv.schedule || sched };
+        if (form.schedule) sched = form.schedule;
+        ls('profile-local', JSON.stringify(form));
+      }
       profileChecked = true;
       if (loadedFile && loadedFile !== dataFile()) load(false);
       if (!profileId && !form && ls('profile-skip') !== '1' && list) { showSetup = true; i = 0; }
@@ -557,7 +564,7 @@ html, body, button, a, .card, .controls, .controls * , header, header * { touch-
       return '<div class="stripe" style="--cat:var(--accent)"></div><div class="inner">' +
         '<h1>나에게 맞는 직무 카드 받기</h1>' +
         '<p>주요 이슈 10개에 더해, 내 직업과 관심분야에 맞춘 직무 카드를 원하는 시간에 만들어 드려요. 직무 카드는 중요한 소식이 많으면 여러 장, 없으면 쉬어요.</p>' +
-        '<label>직업 또는 하는 일<input id="f-job" type="text" maxlength="60" placeholder="예: 병원 간호사, 마케팅 기획, 대학생(전기공학)" value="' + esc(f.job) + '"></label>' +
+        '<label>직업 또는 하는 일<input id="f-job" type="text" maxlength="150" placeholder="예: 병원 간호사, 마케팅 기획, 대학생(전기공학)" value="' + esc(f.job) + '"></label>' +
         '<div style="display:grid;gap:8px"><b style="font-size:13px">관심분야 (여러 개 선택)</b><div class="chips">' + chips + '</div></div>' +
         '<div style="display:grid;gap:8px"><b style="font-size:13px">알림 받을 시간</b>' +
         '<input id="f-time" type="time" step="300" value="' + esc((f.schedule || DEFAULT_SCHED).time) + '">' +
@@ -565,7 +572,7 @@ html, body, button, a, .card, .controls, .controls * , header, header * { touch-
         '<b style="font-size:13px">받을 요일</b><div class="chips days">' + [1, 2, 3, 4, 5, 6, 0].map(function (n) { return '<button type="button" data-day="' + n + '" aria-pressed="' + (dayList(f.schedule || DEFAULT_SCHED).indexOf(n) >= 0) + '">' + DAY_NAMES[n] + '</button>'; }).join('') + '</div>' +
         '<div class="chips"><button type="button" data-hol="1" aria-pressed="' + ((f.schedule || DEFAULT_SCHED).holidays !== false) + '">공휴일엔 쉬기</button></div>' +
         '<p>이 시간에 맞춰 그날 카드를 새로 만들고 알림을 보내요.</p></div>' +
-        '<label>더 알고 싶은 것 (선택)<textarea id="f-note" maxlength="200" placeholder="예: 공기업 채용, 2차전지 투자, 간호 정책">' + esc(f.note) + '</textarea></label>' +
+        '<label>더 알고 싶은 것 (선택)<textarea id="f-note" maxlength="300" placeholder="예: 공기업 채용, 2차전지 투자, 간호 정책">' + esc(f.note) + '</textarea></label>' +
         '<p>이름이나 회사명은 적지 마세요. 적은 내용은 카드를 고르는 데만 쓰여요.</p>' +
         '<button type="button" class="rbtn solid" data-act="save-profile">저장하고 시작하기</button>' +
         '<button type="button" class="linkbtn" data-act="skip-profile" style="justify-self:center">건너뛰기</button></div>';
