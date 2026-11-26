@@ -653,7 +653,7 @@ html, body, button, a, .card, .controls, .controls * , header, header * { touch-
         '<p class="cn-more">자세한 내용은 ⚙︎ 설정에서 신문 보기로</p></div>';
     }
     var pts = s.points.map(function (p) { return '<li>' + esc(p) + '</li>'; }).join('');
-    var det = (s.detail || []).map(function (p) { return '<p>' + esc(p) + '</p>'; }).join('');
+    var det = (Array.isArray(s.detail) ? s.detail : String(s.detail || '').split(/\n\s*\n/)).filter(Boolean).map(function (p) { return '<p>' + esc(p) + '</p>'; }).join('');
     return '<div class="stripe"></div><div class="inner">' +
       '<span class="chip">' + esc(s.label) + '</span>' +
       '<div class="figure"><div class="num">' + esc(s.num) + '</div><div class="lab">' + esc(s.numLabel) + '</div></div>' +
