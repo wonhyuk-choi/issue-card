@@ -1,7 +1,7 @@
 {
   "name": "아침 이슈 카드",
   "short_name": "이슈 카드",
-  "description": "평일 아침 7시 20분, 한 손으로 넘겨 보는 이슈 카드",
+  "description": "원하는 시간에 한 손으로 넘겨 보는 이슈 카드",
   "lang": "ko",
   "start_url": "./",
   "scope": "./",

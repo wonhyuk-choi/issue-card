@@ -1,5 +1,5 @@
 // 아침 이슈 카드 서비스 워커: 오프라인 캐시 + 푸시 알림
-var VERSION = 'v2';
+var VERSION = 'v3';
 var SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 
 self.addEventListener('install', function (e) {
@@ -26,7 +26,7 @@ self.addEventListener('fetch', function (e) {
     return;
   }
   if (url.origin !== location.origin) return;
-  var key = url.pathname.endsWith('/data/today.json') ? new Request(url.origin + url.pathname) : req;
+  var key = url.pathname.indexOf('/data/') >= 0 ? new Request(url.origin + url.pathname) : req;
   e.respondWith(fetch(req).then(function (r) {
     if (r.ok) { var copy = r.clone(); caches.open('shell-' + VERSION).then(function (c) { c.put(key, copy); }); }
     return r;

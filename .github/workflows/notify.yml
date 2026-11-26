@@ -2,16 +2,20 @@ name: 알림 보내기
 on:
   push:
     branches: [main]
-    paths: ['data/today.json']
+    paths: ['data/**']
   workflow_dispatch:
     inputs:
       test:
         description: '테스트 알림으로 보내기'
         type: boolean
         default: true
+      profile:
+        description: '테스트할 사람 id (비우면 전체)'
+        type: string
+        default: ''
 concurrency:
-  group: notify
-  cancel-in-progress: true
+  group: notify-${{ github.sha }}
+  cancel-in-progress: false
 jobs:
   notify:
     runs-on: ubuntu-latest
@@ -28,3 +32,4 @@ jobs:
         env:
           VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
           TEST: ${{ github.event_name == 'workflow_dispatch' && inputs.test }}
+          PROFILE: ${{ inputs.profile }}

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>아침 이슈 카드</title>
-<meta name="description" content="평일 아침 7시 20분, 한 손으로 넘겨 보는 이슈 카드">
+<meta name="description" content="원하는 시간에 한 손으로 넘겨 보는 이슈 카드">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#e9edf2" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0f1319" media="(prefers-color-scheme: dark)">
@@ -198,16 +198,22 @@ html, body { margin: 0; }
   function col(cat) { return 'var(' + (catVar[cat] || '--accent') + ')'; }
 
   /* ---------- 데이터 불러오기 ---------- */
-  // 공통 이슈 + 내 직무 카드(등록된 사람별 jobSets, 없으면 기본 p1)
-  function myJobs(d) {
-    if (!d.jobSets) return d.issues.filter(function (x) { return x.cat === 'job'; });
-    var id = profileId || (form ? null : 'p1');
-    return (id && d.jobSets[id]) || [];
+  // 사람마다 카드 파일이 따로 있음 (data/p1.json, data/p2.json …). 등록 전이면 p1 카드를 보여 주되,
+  // 맞춤 설정만 해 둔 사람에게는 남의 직무 카드는 빼고 보여 줌
+  var DEFAULT_SCHED = { time: '07:20', days: 'weekdays', holidays: true };
+  var sched = null;
+  function dataFile() { return 'data/' + (profileId || 'p1') + '.json'; }
+  function mySched() { return sched || (form && form.schedule) || DEFAULT_SCHED; }
+  function timeLabel(s) {
+    var p = (s.time || '07:20').split(':'), h = +p[0], m = p[1] || '00';
+    return (h < 12 ? '오전 ' : '오후 ') + ((h % 12) || 12) + ':' + m;
   }
+  function schedLabel(s) { s = s || mySched(); return (s.days === 'daily' ? '매일 ' : '평일 ') + timeLabel(s); }
   function setData(d, keepPos) {
     var changed = !data || data.generatedAt !== d.generatedAt;
     raw = d;
-    data = Object.assign({}, d, { issues: d.issues.filter(function (x) { return x.cat !== 'job'; }).concat(myJobs(d)) });
+    var mine = !!profileId || !form;
+    data = mine ? d : Object.assign({}, d, { issues: d.issues.filter(function (x) { return x.cat !== 'job'; }) });
     slides = (showSetup ? [{ type: 'setup' }] : []).concat([{ type: 'cover' }], data.issues.map(function (x) { return Object.assign({ type: 'issue' }, x); }), [{ type: 'end' }]);
     if (changed && !keepPos) {
       i = 0;
@@ -219,20 +225,22 @@ html, body { margin: 0; }
     document.getElementById('dateLabel').textContent = d.dateLabel + ' 이슈';
     render(false);
   }
-  var cached = ls('issue-data');
+  var cached = ls('issue-data-' + dataFile());
   if (cached) { try { setData(JSON.parse(cached)); } catch (e) {} }
 
-  var loadingNow = false, refreshMsg = '', refreshKind = '';
+  var loadingNow = false, refreshMsg = '', refreshKind = '', loadedFile = null;
   function load(manual) {
     if (loadingNow) return Promise.resolve();
     loadingNow = true;
     if (manual) { refreshMsg = '최신 소식을 확인하는 중이에요…'; refreshKind = ''; rerenderIfPanel(); }
-    return fetch('data/today.json?t=' + Date.now(), { cache: 'no-store' }).then(function (r) {
+    var file = dataFile();
+    return fetch(file + '?t=' + Date.now(), { cache: 'no-store' }).then(function (r) {
       if (!r.ok) throw new Error(r.status);
       return r.json();
     }).then(function (d) {
-      var isNew = !data || d.generatedAt !== data.generatedAt;
-      ls('issue-data', JSON.stringify(d));
+      var isNew = !data || d.generatedAt !== data.generatedAt || file !== loadedFile;
+      loadedFile = file;
+      ls('issue-data-' + file, JSON.stringify(d));
       if (manual) {
         refreshMsg = isNew ? '새 소식으로 바꿨어요.' : '지금 보고 있는 게 가장 최신 소식이에요. 더 새로 만들고 싶으면 아래 "지금 새로 만들기"를 눌러 주세요.';
         refreshKind = isNew ? 'ok' : 'same';
@@ -241,7 +249,7 @@ html, body { margin: 0; }
     }).catch(function () {
       if (manual) { refreshMsg = '인터넷 연결을 확인해 주세요. 저장된 카드를 보여드리고 있어요.'; refreshKind = 'err'; rerenderIfPanel(); }
       if (!data) { slides = [{ type: 'error' }]; i = 0; render(false); }
-    }).then(function () { loadingNow = false; rerenderIfPanel(); });
+    }).then(function () { loadingNow = false; rerenderIfPanel(); if (loadedFile && loadedFile !== dataFile()) load(false); });
   }
   function rerenderIfPanel() { if (data && slides[i] && slides[i].type !== 'issue' && slides[i].type !== 'setup') render(false); }
 
@@ -271,15 +279,19 @@ html, body { margin: 0; }
   // 이 기기가 등록돼 있으면 어떤 사람(profile)인지 찾음. 등록도 설정도 없으면 첫 화면에 맞춤 설정을 보여 줌
   function resolveProfile() {
     var subP = swReady ? swReady.then(function (r) { return r.pushManager ? r.pushManager.getSubscription() : null; }).catch(function () { return null; }) : Promise.resolve(null);
-    var listP = fetch('push/subscriptions.json?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
-    return Promise.all([subP, listP]).then(function (res) {
+    var get = function (u) { return fetch(u + '?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }); };
+    return Promise.all([subP, get('push/subscriptions.json'), get('push/profiles.json')]).then(function (res) {
       sub = res[0] || null;
       var list = res[1];
       if (list && sub) {
         var m = list.filter(function (x) { return x.endpoint === sub.endpoint; })[0];
         if (m) { profileId = m.profile || 'p1'; ls('profile-id', profileId); if (ls('profile-dirty') !== '1') ls('push-registered', sub.endpoint); }
       }
+      var profs = res[2] || [];
+      var me = profs.filter(function (x) { return x.id === (profileId || 'p1'); })[0];
+      if (me && me.schedule && (profileId || !form)) sched = me.schedule;
       profileChecked = true;
+      if (loadedFile && loadedFile !== dataFile()) load(false);
       if (!profileId && !form && ls('profile-skip') !== '1' && list) { showSetup = true; i = 0; }
       if (raw) setData(raw, true); else rerenderIfPanel();
     });
@@ -330,7 +342,7 @@ html, body { margin: 0; }
     if (sub && perm === 'granted') {
       var registered = ls('push-registered') === sub.endpoint;
       if (registered) {
-        return '<div class="panel"><h3><span class="dot on"></span>알림 켜짐</h3><p>평일 오전 7시 20분에 "이슈 뉴스 도착" 알림이 와요. 공휴일에는 쉬어요.</p>' + install +
+        return '<div class="panel"><h3><span class="dot on"></span>알림 켜짐</h3><p>' + esc(schedLabel()) + '에 "이슈 뉴스 도착" 알림이 와요.' + (mySched().holidays !== false ? ' 공휴일에는 쉬어요.' : '') + '</p>' + install +
           '<button type="button" class="linkbtn" data-act="showcode">알림 등록 코드 다시 보기</button></div>';
       }
       return '<div class="panel"><h3><span class="dot on"></span>마지막 단계: 알림 등록</h3>' +
@@ -369,9 +381,14 @@ html, body { margin: 0; }
       var chips = INTERESTS.map(function (v) { return '<button type="button" data-chip="1" aria-pressed="' + (f.interests.indexOf(v) >= 0) + '">' + esc(v) + '</button>'; }).join('');
       return '<div class="stripe" style="--cat:var(--accent)"></div><div class="inner">' +
         '<h1>나에게 맞는 직무 카드 받기</h1>' +
-        '<p>매일 아침 공통 이슈 10개에 더해, 내 직업과 관심분야에 맞춘 카드 2개를 만들어 드려요.</p>' +
+        '<p>공통 이슈 10개에 더해, 내 직업과 관심분야에 맞춘 카드 2개를 원하는 시간에 만들어 드려요.</p>' +
         '<label>직업 또는 하는 일<input id="f-job" type="text" maxlength="60" placeholder="예: 병원 간호사, 마케팅 기획, 대학생(전기공학)" value="' + esc(f.job) + '"></label>' +
         '<div style="display:grid;gap:8px"><b style="font-size:13px">관심분야 (여러 개 선택)</b><div class="chips">' + chips + '</div></div>' +
+        '<div style="display:grid;gap:8px"><b style="font-size:13px">알림 받을 시간</b>' +
+        '<input id="f-time" type="time" step="300" value="' + esc((f.schedule || DEFAULT_SCHED).time) + '">' +
+        '<div class="chips">' + [['weekdays', '평일만'], ['daily', '매일']].map(function (o) { return '<button type="button" data-days="' + o[0] + '" aria-pressed="' + (((f.schedule || DEFAULT_SCHED).days) === o[0]) + '">' + o[1] + '</button>'; }).join('') +
+        '<button type="button" data-hol="1" aria-pressed="' + ((f.schedule || DEFAULT_SCHED).holidays !== false) + '">공휴일엔 쉬기</button></div>' +
+        '<p>이 시간에 맞춰 그날 카드를 새로 만들고 알림을 보내요.</p></div>' +
         '<label>더 알고 싶은 것 (선택)<textarea id="f-note" maxlength="200" placeholder="예: 공기업 채용, 2차전지 투자, 간호 정책">' + esc(f.note) + '</textarea></label>' +
         '<p>이름이나 회사명은 적지 마세요. 적은 내용은 카드를 고르는 데만 쓰여요.</p>' +
         '<button type="button" class="rbtn solid" data-act="save-profile">저장하고 시작하기</button>' +
@@ -382,7 +399,7 @@ html, body { margin: 0; }
         return '<li><button type="button" data-jump="' + (C + k + 1) + '" style="--c:' + col(x.cat) + '"><span class="n">' + String(k + 1).padStart(2, '0') + '</span><span>' + esc(x.title) + '</span></button></li>';
       }).join('');
       return '<div class="stripe" style="--cat:var(--ink)"></div><div class="inner">' +
-        '<div class="date">' + esc(data.date) + ' · 오전 7:20 브리핑</div>' +
+        '<div class="date">' + esc(data.date) + ' · ' + esc(timeLabel(mySched())) + ' 브리핑</div>' +
         '<h1>' + esc(data.headline) + '</h1>' +
         '<div class="hint"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H5M10 6l-6 6 6 6"/></svg>책장처럼 왼쪽으로 넘기면 다음 이슈, 오른쪽으로 넘기면 이전 이슈</div>' +
         '<ul class="toc">' + toc + '</ul>' + refreshBlock() + pushPanel() + '</div>';
@@ -391,7 +408,7 @@ html, body { margin: 0; }
       return '<div class="stripe" style="--cat:var(--ink)"></div><div class="inner">' +
         '<svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.6 2.6L16 9.5"/></svg>' +
         '<h2>오늘 이슈 ' + data.issues.length + '개를 모두 봤어요</h2>' +
-        '<p>다음 브리핑은 다음 평일 오전 7시 20분에 도착합니다.<br>공휴일에는 쉬어 갑니다.</p>' +
+        '<p>다음 브리핑은 ' + esc(schedLabel()) + '에 도착합니다.' + (mySched().holidays !== false ? '<br>공휴일에는 쉬어 갑니다.' : '') + '</p>' +
         '<div class="controls" style="grid-template-columns:1fr;width:100%"><button type="button" data-jump="' + C + '">처음부터 다시 보기</button></div>' + refreshBlock() + '</div>';
     }
     var pts = s.points.map(function (p) { return '<li>' + esc(p) + '</li>'; }).join('');
@@ -453,7 +470,12 @@ html, body { margin: 0; }
       var note = (document.getElementById('f-note') || {}).value || '';
       var picks = Array.prototype.filter.call(stage.querySelectorAll('[data-chip]'), function (b) { return b.getAttribute('aria-pressed') === 'true'; }).map(function (b) { return b.textContent; });
       if (!job.trim() && !picks.length) { var j = document.getElementById('f-job'); if (j) j.focus(); return; }
-      form = { job: job.trim(), interests: picks, note: note.trim() };
+      var tm = (document.getElementById('f-time') || {}).value || DEFAULT_SCHED.time;
+      var dayBtn = stage.querySelector('[data-days][aria-pressed="true"]');
+      var hol = stage.querySelector('[data-hol]');
+      form = { job: job.trim(), interests: picks, note: note.trim(),
+        schedule: { time: tm, days: dayBtn ? dayBtn.getAttribute('data-days') : 'weekdays', holidays: !hol || hol.getAttribute('aria-pressed') === 'true' } };
+      if (!profileId) sched = null;
       ls('profile-local', JSON.stringify(form));
       if (profileId) { ls('push-registered', null); ls('profile-dirty', '1'); } // 이미 등록된 기기면 바뀐 설정을 반영하도록 코드를 다시 보내게 함
       showSetup = false; i = 0; return setData(raw, true);
@@ -488,6 +510,10 @@ html, body { margin: 0; }
     el.addEventListener('pointercancel', end);
     el.addEventListener('click', function (e) {
       if (moved) { e.preventDefault(); e.stopPropagation(); moved = false; return; }
+      var dd = e.target.closest('[data-days]');
+      if (dd) { Array.prototype.forEach.call(stage.querySelectorAll('[data-days]'), function (b) { b.setAttribute('aria-pressed', String(b === dd)); }); return; }
+      var hb = e.target.closest('[data-hol]');
+      if (hb) { hb.setAttribute('aria-pressed', hb.getAttribute('aria-pressed') === 'true' ? 'false' : 'true'); return; }
       var c = e.target.closest('[data-chip]');
       if (c) { c.setAttribute('aria-pressed', c.getAttribute('aria-pressed') === 'true' ? 'false' : 'true'); return; }
       var a = e.target.closest('[data-act]');
