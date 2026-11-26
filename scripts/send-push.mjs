@@ -23,6 +23,7 @@ async function send(list, payload) {
       await webpush.sendNotification(s, JSON.stringify(payload), { TTL: 6 * 3600, urgency: 'high', vapidDetails });
       ok++; console.log('전송 성공', s.profile || 'p1', new URL(s.endpoint).host);
     } catch (e) {
+      if (e.statusCode === 404 || e.statusCode === 410) { ok++; console.log('알림을 끈 기기(건너뜀)', s.profile || 'p1', new URL(s.endpoint).host); continue; }
       console.error('전송 실패', s.profile || 'p1', new URL(s.endpoint).host, e.statusCode, e.body || e.message);
     }
   }

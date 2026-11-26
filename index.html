@@ -258,7 +258,7 @@ html, body { margin: 0; }
   var isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
   var pushOK = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
-  var installEvt = null, sub = null, pushBusy = false, pushErr = '', copied = false;
+  var installEvt = null, sub = null, pushBusy = false, pushErr = '', copied = false, offArm = false, offDone = false;
 
   window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); installEvt = e; rerenderIfPanel(); });
   window.addEventListener('appinstalled', function () { installEvt = null; rerenderIfPanel(); });
@@ -343,6 +343,7 @@ html, body { margin: 0; }
       var registered = ls('push-registered') === sub.endpoint;
       if (registered) {
         return '<div class="panel"><h3><span class="dot on"></span>알림 켜짐</h3><p>' + esc(schedLabel()) + '에 "이슈 뉴스 도착" 알림이 와요.' + (mySched().holidays !== false ? ' 공휴일에는 쉬어요.' : '') + '</p>' + install +
+          '<button type="button" class="rbtn small" data-act="push-off">' + (offArm ? '한 번 더 누르면 알림이 꺼져요' : '알림 끄기') + '</button>' +
           '<button type="button" class="linkbtn" data-act="showcode">알림 등록 코드 다시 보기</button></div>';
       }
       return '<div class="panel"><h3><span class="dot on"></span>마지막 단계: 알림 등록</h3>' +
@@ -352,7 +353,7 @@ html, body { margin: 0; }
         '<button type="button" class="rbtn small" data-act="registered">보냈어요</button></div>' + install + '</div>';
     }
     return '<div class="panel"><h3><span class="dot"></span>알림 꺼짐</h3>' +
-      '<p>알림을 켜면 평일 아침 새 카드가 도착할 때 알려 드려요.</p>' +
+      '<p>' + (offDone ? '알림을 껐어요. 카드는 앱을 열면 계속 볼 수 있어요. 다시 켜면 새 코드를 한 번 더 보내 주셔야 해요.' : '알림을 켜면 ' + esc(schedLabel()) + '에 새 카드가 도착할 때 알려 드려요.') + '</p>' +
       '<button type="button" class="rbtn small solid" data-act="push"' + (pushBusy ? ' disabled' : '') + '>' + (pushBusy ? '켜는 중…' : '알림 켜기') + '</button>' +
       (pushErr ? '<p class="rstatus err">' + esc(pushErr) + '</p>' : '') + install + '</div>';
   }
@@ -485,6 +486,13 @@ html, body { margin: 0; }
     if (name === 'push') return enablePush();
     if (name === 'copy') return copyCode();
     if (name === 'registered') { if (sub) ls('push-registered', sub.endpoint); ls('profile-dirty', null); copied = false; return render(false); }
+    if (name === 'push-off') {
+      if (!offArm) { offArm = true; render(false); setTimeout(function () { if (offArm) { offArm = false; rerenderIfPanel(); } }, 5000); return; }
+      offArm = false;
+      return (sub ? sub.unsubscribe() : Promise.resolve()).catch(function () {}).then(function () {
+        sub = null; offDone = true; ls('push-registered', null); render(false);
+      });
+    }
     if (name === 'showcode') { ls('push-registered', null); return render(false); }
     if (name === 'install' && installEvt) { installEvt.prompt(); installEvt.userChoice.then(function () { installEvt = null; render(false); }); }
   }
