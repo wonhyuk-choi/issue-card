@@ -15,6 +15,15 @@ const subs = read('push/subscriptions.json');
 if (!subs.length) { console.log('등록된 기기가 없습니다. 보낼 곳이 없어 종료합니다.'); process.exit(0); }
 const data = read('data/today.json');
 
+// 카드 내용(generatedAt)이 바뀐 커밋일 때만 알림 (형식 정리 같은 커밋으로 중복 알림 방지)
+if (!test) {
+  try {
+    const { execSync } = await import('node:child_process');
+    const prev = JSON.parse(execSync('git show HEAD~1:data/today.json', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }));
+    if (prev.generatedAt === data.generatedAt) { console.log('새 카드가 아니라 알림을 보내지 않습니다.'); process.exit(0); }
+  } catch {}
+}
+
 if (!test) {
   // 1) 웹사이트에 새 카드가 반영될 때까지 기다림 (최대 10분)
   for (let k = 0; k < 30; k++) {
