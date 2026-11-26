@@ -1,1 +1,3 @@
-[]
+[
+ {"endpoint":"https://web.push.apple.com/QD3G0mZK_Uj1yPSly4LylclHNgW8wVrmsBCo7nbaWVvmjMz3MwKblTMXj4hTJKmdOouKVFIFeFASs6jL_Uf9BFDA4T9my2wuMRrfZMtydS6Dt_F36SJ8Gs-p_gVEQ9SQCdUkkBIwgVvlnJHDE9jJYHzDtElag0bub1X-CIuuOwU","expirationTime":null,"keys":{"p256dh":"BN-HeCVTgDmBPzkyBQPPPdYHeC5dCmz56k8c8ZfsgMviEnKqP1nWcg_JvvrXwFtULR3hOOAoKrT-clMSYDbAF4g","auth":"TzsrZ5pRVJCI3oUucqbKgg"},"label":"iPhone"}
+]
