@@ -258,11 +258,14 @@ html, body, button, a, .card, .controls, .controls * , header, header * { touch-
   function sheetHtml() {
     var seg = function (key, opts) { return '<div class="seg">' + opts.map(function (o) { return '<button type="button" data-k="' + key + '" data-v="' + o[1] + '" aria-pressed="' + (String(view[key]) === String(o[1])) + '">' + o[0] + '</button>'; }).join('') + '</div>'; };
     var mine = form ? '<p class="sum">' + esc((function (j) { j = (j || '직업 미입력').split(/[.。]/)[0]; return j.length > 28 ? j.slice(0, 27) + '…' : j; })(form.job)) + ' · ' + esc((form.interests || []).slice(0, 3).join(', ') + ((form.interests || []).length > 3 ? ' 외' : '')) + '<br>' + esc(schedLabel()) + '</p>' : '<p class="sum">아직 맞춤 설정을 하지 않았어요.</p>';
+    var onIssue = slides[i] && slides[i].type === 'issue';
     return '<div class="sheet" role="dialog" aria-label="설정"><h3>설정</h3>' +
-      '<b>맞춤 설정</b>' + mine + '<button type="button" class="rbtn small" data-act="edit-profile">직업 · 관심분야 · 알림 시간 ' + (form ? '바꾸기' : '정하기') + '</button>' +
-      '<div class="sheet-push">' + pushPanelInner() + '</div>' +
       '<b>보기 방식</b>' + seg('mode', [['카드뉴스', 'cn'], ['신문', 'paper']]) +
       '<b>글자 크기</b>' + seg('zoom', ZOOMS) +
+      '<p class="sum">고르면 바로 바뀌어요.' + (onIssue ? '' : ' 보기 방식은 표지 말고 이슈 카드에서 달라 보여요.') + '</p>' +
+      '<b>맞춤 설정</b>' + mine + '<button type="button" class="rbtn small" data-act="edit-profile">직업 · 관심분야 · 알림 시간 ' + (form ? '바꾸기' : '정하기') + '</button>' +
+      '<p class="sum">바꾼 내용은 다음 카드부터 반영돼요.</p>' +
+      '<div class="sheet-push">' + pushPanelInner() + '</div>' +
       '<button type="button" class="done">닫기</button></div>';
   }
   var sheetBack = null;
@@ -278,6 +281,7 @@ html, body, button, a, .card, .controls, .controls * , header, header * { touch-
         view[k] = k === 'zoom' ? parseFloat(v) : v; applyView();
         Array.prototype.forEach.call(back.querySelectorAll('[data-k="' + k + '"]'), function (x) { x.setAttribute('aria-pressed', String(x === b)); });
         if (data) render(false);
+        setTimeout(function () { back.remove(); }, 250); // 바로 닫아서 바뀐 화면이 보이게
         return;
       }
       var a = e.target.closest('[data-act]');
