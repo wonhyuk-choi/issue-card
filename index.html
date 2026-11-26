@@ -498,7 +498,9 @@ html, body, button, a, .card, .controls, .controls * , header, header * { touch-
     return '';
   }
   function pushPanel() {
-    return pushPanelInner() + profileNote() + '<button type="button" class="linkbtn" data-act="edit-profile">맞춤 설정 ' + (form ? '바꾸기' : '하기') + '</button>';
+    /* 알림이 이미 켜진 기기는 표지에서 숨김(상단 ⚙︎ 설정에서 관리). 설치·알림 켜기가 남은 사람에게만 표지에 보여 줌 */
+    var done = pushOK && !!sub && Notification.permission === 'granted' && ls('push-registered') === sub.endpoint;
+    return done ? '' : pushPanelInner() + profileNote();
   }
   function pushPanelInner() {
     if (isIOS && !standalone) {
