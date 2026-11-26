@@ -4,7 +4,7 @@
 앱 주소: https://wonhyuk-choi.github.io/issue-card/
 
 ## 0) 대상과 실행 종류
-- `push/profiles.json`에서 대상 프로필을 찾습니다: `job`, `interests`, `note`, `schedule`(`time` "HH:MM", `days` "weekdays"|"daily", `holidays` true면 공휴일에 쉼).
+- `push/profiles.json`에서 대상 프로필을 찾습니다: `job`, `interests`, `note`, `schedule`(`time` "HH:MM", `days` 요일 번호 배열(0=일, 1=월 … 6=토; 예전 형식 "weekdays"=1-5, "daily"=매일), `holidays` true면 공휴일에 쉼).
 - 지금 시각(Asia/Seoul)이 그 사람의 `schedule.time` 40분 전부터 그 시각 사이면 **정기 실행**, 아니면 사용자가 직접 실행한 **수동 실행**입니다.
 
 ## 1) 쉬는 날 확인 (정기 실행만)
@@ -54,6 +54,6 @@ push 하면 GitHub Actions가 웹사이트 반영을 확인하고 notifyAt 시�
 - 새 사람이 생기면 할 일:
   1. `push/profiles.json`에 그 사람이 들어온 것을 확인합니다(없으면 위 동기화 실행).
   2. 그 사람 첫 카드 `data/<id>.json`을 만듭니다(오늘 날짜, notifyAt 없이). 커밋 메시지에 `[no-notify]`를 넣으면 이 커밋으로는 알림이 안 갑니다.
-  3. 그 사람용 정기 작업을 만듭니다: 새 세션 방식, 시각은 `schedule.time`의 25분 전(CRON_TZ=Asia/Seoul), 요일은 weekdays면 1-5, daily면 *. 메시지는 "대상 프로필: <id>. 저장소 wonhyuk-choi/issue-card 를 붙이고(add_repo, access push) BRIEFING.md 를 읽고 그대로 따르세요." 알림 시간이 바뀌면 작업을 새로 만들고 예전 것은 지웁니다.
+  3. 그 사람용 정기 작업을 만듭니다: 새 세션 방식, 시각은 `schedule.time`의 25분 전(CRON_TZ=Asia/Seoul), 요일은 `days` 배열을 cron 요일 칸에 쉼표로(예: [1,3,5] → 1,3,5, 7일 모두면 *). 메시지는 "대상 프로필: <id>. 저장소 wonhyuk-choi/issue-card 를 붙이고(add_repo, access push) BRIEFING.md 를 읽고 그대로 따르세요." 알림 시간이 바뀌면 작업을 새로 만들고 예전 것은 지웁니다.
   4. 테스트 알림: `gh api -X POST repos/wonhyuk-choi/issue-card/actions/workflows/notify.yml/dispatches -f ref=main -f "inputs[test]=true" -f "inputs[profile]=<id>"`
 - 워커가 없을 때(예비): 앱이 보여 주는 코드(JSON)를 받아 `push/subscriptions.json`에 endpoint·keys와 `"profile": "<id>"`를 넣고, `push/profiles.json`에 맞춤 설정을 추가합니다.

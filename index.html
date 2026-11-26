@@ -200,7 +200,16 @@ html, body { margin: 0; }
   /* ---------- 데이터 불러오기 ---------- */
   // 사람마다 카드 파일이 따로 있음 (data/p1.json, data/p2.json …). 등록 전이면 p1 카드를 보여 주되,
   // 맞춤 설정만 해 둔 사람에게는 남의 직무 카드는 빼고 보여 줌
-  var DEFAULT_SCHED = { time: '07:20', days: 'weekdays', holidays: true };
+  var DEFAULT_SCHED = { time: '07:20', days: [1, 2, 3, 4, 5], holidays: true };
+  var DAY_NAMES = ['일', '월', '화', '수', '목', '금', '토'];
+  function dayList(s) { var d = s && s.days; if (Array.isArray(d)) return d; return d === 'daily' ? [0, 1, 2, 3, 4, 5, 6] : [1, 2, 3, 4, 5]; }
+  function daysLabel(s) {
+    var d = dayList(s).slice().sort(), key = d.join('');
+    if (key === '0123456') return '매일';
+    if (key === '12345') return '평일';
+    if (key === '06') return '주말';
+    return [1, 2, 3, 4, 5, 6, 0].filter(function (n) { return d.indexOf(n) >= 0; }).map(function (n) { return DAY_NAMES[n]; }).join('·') + '요일';
+  }
   var sched = null;
   function dataFile() { return 'data/' + (profileId || 'p1') + '.json'; }
   function mySched() { return sched || (form && form.schedule) || DEFAULT_SCHED; }
@@ -208,7 +217,7 @@ html, body { margin: 0; }
     var p = (s.time || '07:20').split(':'), h = +p[0], m = p[1] || '00';
     return (h < 12 ? '오전 ' : '오후 ') + ((h % 12) || 12) + ':' + m;
   }
-  function schedLabel(s) { s = s || mySched(); return (s.days === 'daily' ? '매일 ' : '평일 ') + timeLabel(s); }
+  function schedLabel(s) { s = s || mySched(); return daysLabel(s) + ' ' + timeLabel(s); }
   function setData(d, keepPos) {
     var changed = !data || data.generatedAt !== d.generatedAt;
     raw = d;
@@ -421,8 +430,8 @@ html, body { margin: 0; }
         '<div style="display:grid;gap:8px"><b style="font-size:13px">관심분야 (여러 개 선택)</b><div class="chips">' + chips + '</div></div>' +
         '<div style="display:grid;gap:8px"><b style="font-size:13px">알림 받을 시간</b>' +
         '<input id="f-time" type="time" step="300" value="' + esc((f.schedule || DEFAULT_SCHED).time) + '">' +
-        '<div class="chips">' + [['weekdays', '평일만'], ['daily', '매일']].map(function (o) { return '<button type="button" data-days="' + o[0] + '" aria-pressed="' + (((f.schedule || DEFAULT_SCHED).days) === o[0]) + '">' + o[1] + '</button>'; }).join('') +
-        '<button type="button" data-hol="1" aria-pressed="' + ((f.schedule || DEFAULT_SCHED).holidays !== false) + '">공휴일엔 쉬기</button></div>' +
+        '<b style="font-size:13px">받을 요일</b><div class="chips">' + [1, 2, 3, 4, 5, 6, 0].map(function (n) { return '<button type="button" data-day="' + n + '" aria-pressed="' + (dayList(f.schedule || DEFAULT_SCHED).indexOf(n) >= 0) + '" style="min-width:44px">' + DAY_NAMES[n] + '</button>'; }).join('') + '</div>' +
+        '<div class="chips"><button type="button" data-hol="1" aria-pressed="' + ((f.schedule || DEFAULT_SCHED).holidays !== false) + '">공휴일엔 쉬기</button></div>' +
         '<p>이 시간에 맞춰 그날 카드를 새로 만들고 알림을 보내요.</p></div>' +
         '<label>더 알고 싶은 것 (선택)<textarea id="f-note" maxlength="200" placeholder="예: 공기업 채용, 2차전지 투자, 간호 정책">' + esc(f.note) + '</textarea></label>' +
         '<p>이름이나 회사명은 적지 마세요. 적은 내용은 카드를 고르는 데만 쓰여요.</p>' +
@@ -506,10 +515,11 @@ html, body { margin: 0; }
       var picks = Array.prototype.filter.call(stage.querySelectorAll('[data-chip]'), function (b) { return b.getAttribute('aria-pressed') === 'true'; }).map(function (b) { return b.textContent; });
       if (!job.trim() && !picks.length) { var j = document.getElementById('f-job'); if (j) j.focus(); return; }
       var tm = (document.getElementById('f-time') || {}).value || DEFAULT_SCHED.time;
-      var dayBtn = stage.querySelector('[data-days][aria-pressed="true"]');
+      var days = Array.prototype.filter.call(stage.querySelectorAll('[data-day]'), function (b) { return b.getAttribute('aria-pressed') === 'true'; }).map(function (b) { return +b.getAttribute('data-day'); });
+      if (!days.length) days = [1, 2, 3, 4, 5];
       var hol = stage.querySelector('[data-hol]');
       form = { job: job.trim(), interests: picks, note: note.trim(),
-        schedule: { time: tm, days: dayBtn ? dayBtn.getAttribute('data-days') : 'weekdays', holidays: !hol || hol.getAttribute('aria-pressed') === 'true' } };
+        schedule: { time: tm, days: days, holidays: !hol || hol.getAttribute('aria-pressed') === 'true' } };
       if (!profileId) sched = null;
       ls('profile-local', JSON.stringify(form));
       if (profileId && workerUrl && sub) { api('/profile', { endpoint: sub.endpoint, profile: form }).catch(function () {}); sched = form.schedule; }
@@ -559,8 +569,8 @@ html, body { margin: 0; }
     el.addEventListener('pointercancel', end);
     el.addEventListener('click', function (e) {
       if (moved) { e.preventDefault(); e.stopPropagation(); moved = false; return; }
-      var dd = e.target.closest('[data-days]');
-      if (dd) { Array.prototype.forEach.call(stage.querySelectorAll('[data-days]'), function (b) { b.setAttribute('aria-pressed', String(b === dd)); }); return; }
+      var dd = e.target.closest('[data-day]');
+      if (dd) { dd.setAttribute('aria-pressed', dd.getAttribute('aria-pressed') === 'true' ? 'false' : 'true'); return; }
       var hb = e.target.closest('[data-hol]');
       if (hb) { hb.setAttribute('aria-pressed', hb.getAttribute('aria-pressed') === 'true' ? 'false' : 'true'); return; }
       var c = e.target.closest('[data-chip]');

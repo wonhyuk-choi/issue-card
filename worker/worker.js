@@ -111,6 +111,12 @@ function cleanSub(s) {
   if (typeof k.p256dh !== 'string' || typeof k.auth !== 'string' || k.p256dh.length > 200 || k.auth.length > 100) return null;
   return { endpoint: s.endpoint, expirationTime: null, keys: { p256dh: k.p256dh, auth: k.auth } };
 }
+function cleanDays(d) {
+  if (d === 'daily') return [0, 1, 2, 3, 4, 5, 6];
+  if (!Array.isArray(d)) return [1, 2, 3, 4, 5];
+  const out = [...new Set(d.map(Number).filter((n) => Number.isInteger(n) && n >= 0 && n <= 6))].sort();
+  return out.length ? out : [1, 2, 3, 4, 5];
+}
 function cleanProfile(p) {
   const str = (v, n) => String(v || '').slice(0, n);
   const s = p.schedule || {};
@@ -119,6 +125,6 @@ function cleanProfile(p) {
     job: str(p.job, 60),
     interests: Array.isArray(p.interests) ? p.interests.slice(0, 15).map((x) => str(x, 30)) : [],
     note: str(p.note, 200),
-    schedule: { time, days: s.days === 'daily' ? 'daily' : 'weekdays', holidays: s.holidays !== false },
+    schedule: { time, days: cleanDays(s.days), holidays: s.holidays !== false },
   };
 }
