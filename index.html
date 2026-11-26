@@ -156,6 +156,12 @@ html, body { margin: 0; }
 .setup h1 { margin: 0; font-size: 26px; line-height: 1.3; font-weight: 700; word-break: keep-all; }
 .setup p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--muted); word-break: keep-all; }
 .setup label { font-size: 13px; font-weight: 700; display: grid; gap: 6px; }
+.chips.days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.chips.days button { padding: 8px 0; }
+.card.setup { overflow-x: hidden; touch-action: pan-y; }
+body.in-setup .controls, body.in-setup .bars { display: none; }
+body.in-setup .app { grid-template-rows: auto 1fr; }
+.setup input[type="time"] { -webkit-appearance: none; appearance: none; display: block; min-height: 48px; max-width: 100%; text-align: left; }
 .setup input, .setup textarea { font: 400 16px/1.5 var(--f-text); color: var(--ink); background: var(--soft); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; width: 100%; box-sizing: border-box; user-select: text; -webkit-user-select: text; }
 .setup textarea { min-height: 72px; resize: vertical; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -430,7 +436,7 @@ html, body { margin: 0; }
         '<div style="display:grid;gap:8px"><b style="font-size:13px">관심분야 (여러 개 선택)</b><div class="chips">' + chips + '</div></div>' +
         '<div style="display:grid;gap:8px"><b style="font-size:13px">알림 받을 시간</b>' +
         '<input id="f-time" type="time" step="300" value="' + esc((f.schedule || DEFAULT_SCHED).time) + '">' +
-        '<b style="font-size:13px">받을 요일</b><div class="chips">' + [1, 2, 3, 4, 5, 6, 0].map(function (n) { return '<button type="button" data-day="' + n + '" aria-pressed="' + (dayList(f.schedule || DEFAULT_SCHED).indexOf(n) >= 0) + '" style="min-width:44px">' + DAY_NAMES[n] + '</button>'; }).join('') + '</div>' +
+        '<b style="font-size:13px">받을 요일</b><div class="chips days">' + [1, 2, 3, 4, 5, 6, 0].map(function (n) { return '<button type="button" data-day="' + n + '" aria-pressed="' + (dayList(f.schedule || DEFAULT_SCHED).indexOf(n) >= 0) + '">' + DAY_NAMES[n] + '</button>'; }).join('') + '</div>' +
         '<div class="chips"><button type="button" data-hol="1" aria-pressed="' + ((f.schedule || DEFAULT_SCHED).holidays !== false) + '">공휴일엔 쉬기</button></div>' +
         '<p>이 시간에 맞춰 그날 카드를 새로 만들고 알림을 보내요.</p></div>' +
         '<label>더 알고 싶은 것 (선택)<textarea id="f-note" maxlength="200" placeholder="예: 공기업 채용, 2차전지 투자, 간호 정책">' + esc(f.note) + '</textarea></label>' +
@@ -477,7 +483,9 @@ html, body { margin: 0; }
   function render(enter) {
     var keepScroll = cur && !enter && cur.__k === i ? cur.scrollTop : 0;
     stage.innerHTML = '';
-    if (i + 1 < slides.length) stage.appendChild(makeCard(i + 1, 'under'));
+    var isSetup = slides[i] && slides[i].type === 'setup';
+    document.body.classList.toggle('in-setup', !!isSetup);
+    if (i + 1 < slides.length && !isSetup) stage.appendChild(makeCard(i + 1, 'under'));
     cur = makeCard(i, enter ? 'enter' : '');
     cur.__k = i;
     stage.appendChild(cur);
@@ -550,7 +558,8 @@ html, body { margin: 0; }
 
   function bind(el) {
     var x0, y0, dx = 0, mode = null, id = null, moved = false;
-    el.addEventListener('pointerdown', function (e) { x0 = e.clientX; y0 = e.clientY; dx = 0; mode = null; id = e.pointerId; moved = false; el.classList.remove('anim'); });
+    var still = el.classList.contains('setup'); // 맞춤 설정 화면은 옆으로 밀리지 않게 고정
+    if (!still) el.addEventListener('pointerdown', function (e) { x0 = e.clientX; y0 = e.clientY; dx = 0; mode = null; id = e.pointerId; moved = false; el.classList.remove('anim'); });
     el.addEventListener('pointermove', function (e) {
       if (id !== e.pointerId || x0 == null) return;
       var ddx = e.clientX - x0, ddy = e.clientY - y0;
