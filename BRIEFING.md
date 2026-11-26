@@ -55,12 +55,12 @@ push 하면 GitHub Actions가 웹사이트 반영을 확인하고 notifyAt 시�
 
 ## 새 사람 등록 / 설정 변경 (관리용)
 알림 저장소(Cloudflare Worker, 주소는 `push/worker.json`)가 있으면 등록·일시중지는 앱에서 자동으로 처리됩니다.
-- 앱에서 "알림 켜기"를 누르면 워커에 기기와 맞춤 설정이 저장되고 다음 번호(`p2`, `p3`…)가 붙습니다. 일시중지한 기기는 알림 발송에서 빠집니다.
+- 첫 화면 맞춤 설정에서 초대 코드를 넣고 "등록하고 시작하기"를 누르면 알림 없이도 워커에 기기와 맞춤 설정이 저장되고 다음 번호(`p2`, `p3`…)가 붙습니다. 알림은 나중에 ⚙︎ 설정에서 켜며, 알림을 안 켠 기기와 일시중지한 기기는 알림 발송에서 빠집니다.
 - 맞춤 설정은 매시 17분 GitHub Actions("알림 저장소 배포·동기화")가 `push/profiles.json`으로 옮깁니다. 바로 옮기려면 그 워크플로를 수동 실행합니다:
   `gh api -X POST repos/wonhyuk-choi/issue-card/actions/workflows/worker.yml/dispatches -f ref=main`
 - 새 사람이 생기면 할 일:
   1. `push/profiles.json`에 그 사람이 들어온 것을 확인합니다(없으면 위 동기화 실행).
   2. 그 사람 첫 카드 `data/<id>.json`을 만듭니다(오늘 날짜, notifyAt 없이). 커밋 메시지에 `[no-notify]`를 넣으면 이 커밋으로는 알림이 안 갑니다.
   3. 그 사람용 정기 작업을 만듭니다: 새 세션 방식, 시각은 `schedule.time`의 25분 전(CRON_TZ=Asia/Seoul), 요일은 `days` 배열을 cron 요일 칸에 쉼표로(예: [1,3,5] → 1,3,5, 7일 모두면 *). 메시지는 "대상 프로필: <id>. 저장소 wonhyuk-choi/issue-card 를 붙이고(add_repo, access push) BRIEFING.md 를 읽고 그대로 따르세요." 알림 시간이 바뀌면 작업을 새로 만들고 예전 것은 지웁니다.
-  4. 테스트 알림: `gh api -X POST repos/wonhyuk-choi/issue-card/actions/workflows/notify.yml/dispatches -f ref=main -f "inputs[test]=true" -f "inputs[profile]=<id>"`
+  4. 테스트 알림(그 사람이 알림을 켰을 때만): `gh api -X POST repos/wonhyuk-choi/issue-card/actions/workflows/notify.yml/dispatches -f ref=main -f "inputs[test]=true" -f "inputs[profile]=<id>"`
 - 워커가 없을 때(예비): 앱이 보여 주는 코드(JSON)를 받아 `push/subscriptions.json`에 endpoint·keys와 `"profile": "<id>"`를 넣고, `push/profiles.json`에 맞춤 설정을 추가합니다.

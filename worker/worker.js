@@ -1,5 +1,5 @@
 // 이슈 카드 알림 저장소 (Cloudflare Worker + KV, 무료)
-// 앱: 알림 등록(/register), 상태 확인(/status), 일시중지·재개(/pause), 맞춤 설정 저장(/profile)
+// 앱: 등록(/register, 초대 코드만으로 또는 알림과 함께), 상태 확인(/status), 일시중지·재개(/pause), 맞춤 설정 저장(/profile)
 // 관리(GitHub Actions 전용, ADMIN_KEY 필요): /admin/list, /admin/import
 const MAX_SUBS = 50;
 
@@ -22,41 +22,56 @@ export default {
       const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
       const ep = body.endpoint || (body.sub && body.sub.endpoint) || '';
 
+      // 기기 찾기: 앱이 만든 기기 번호(device)가 우선, 예전 기기는 알림 주소(endpoint)로 찾고 기기 번호 쪽으로 옮김
+      const dev = typeof body.device === 'string' && /^[A-Za-z0-9-]{16,64}$/.test(body.device) ? body.device : '';
+      const locate = async () => {
+        const dk = dev ? await keyOf('device:' + dev) : '';
+        if (dk) { const r = await env.KV.get(dk, 'json'); if (r) return { k: dk, rec: r }; }
+        if (ep) {
+          const ek = await keyOf(ep); const r = await env.KV.get(ek, 'json');
+          if (r && dk) { await env.KV.put(dk, JSON.stringify(r)); await env.KV.delete(ek); return { k: dk, rec: r }; }
+          if (r) return { k: ek, rec: r };
+          return { k: dk || ek, rec: null };
+        }
+        return { k: dk, rec: null };
+      };
+      const view = (rec) => ({ registered: true, id: rec.id, paused: !!rec.paused, push: !!rec.sub && !!ep && rec.sub.endpoint === ep, profile: rec.profile || null });
+
       if (url.pathname === '/register' && req.method === 'POST') {
-        const sub = cleanSub(body.sub);
-        if (!sub) return json({ error: 'bad subscription' }, 400);
-        const k = await keyOf(sub.endpoint);
-        let rec = await env.KV.get(k, 'json');
+        // 초대 코드만으로 등록(알림 없이)도 되고, 알림 주소(sub)가 오면 알림도 켬
+        const sub = body.sub ? cleanSub(body.sub) : null;
+        if (body.sub && !sub) return json({ error: 'bad subscription' }, 400);
+        if (!dev && !sub) return json({ error: 'bad request' }, 400);
+        const found = await locate();
+        let rec = found.rec;
+        const k = found.k || await keyOf(sub.endpoint);
         if (!rec) {
           // 새 기기는 초대 코드가 맞아야 등록됨 (이미 등록된 기기는 그대로)
           if (env.INVITE_CODE && String(body.invite || '').trim() !== env.INVITE_CODE) return json({ error: 'invite' }, 403);
           const n = (await env.KV.list({ prefix: 'sub:' })).keys.length;
           if (n >= MAX_SUBS) return json({ error: 'full' }, 429);
-          rec = { id: await nextId(env), createdAt: now() };
+          rec = { id: await nextId(env), createdAt: now(), paused: false };
         }
-        rec.sub = sub;
+        if (sub) { rec.sub = sub; rec.paused = false; }
         if (body.profile) rec.profile = cleanProfile(body.profile);
-        rec.paused = false;
         rec.updatedAt = now();
         await env.KV.put(k, JSON.stringify(rec));
-        return json({ id: rec.id, paused: false });
+        return json({ id: rec.id, paused: !!rec.paused, push: !!sub || (!!rec.sub && !!ep && rec.sub.endpoint === ep) });
       }
       if (url.pathname === '/status' && req.method === 'POST') {
-        const rec = ep ? await env.KV.get(await keyOf(ep), 'json') : null;
+        const { rec } = await locate();
         if (!rec) return json({ registered: false });
-        return json({ registered: true, id: rec.id, paused: !!rec.paused, profile: rec.profile || null });
+        return json(view(rec));
       }
       if (url.pathname === '/pause' && req.method === 'POST') {
-        const k = ep ? await keyOf(ep) : '';
-        const rec = k ? await env.KV.get(k, 'json') : null;
+        const { k, rec } = await locate();
         if (!rec) return json({ error: 'not registered' }, 404);
         rec.paused = !!body.paused; rec.updatedAt = now();
         await env.KV.put(k, JSON.stringify(rec));
         return json({ id: rec.id, paused: rec.paused });
       }
       if (url.pathname === '/profile' && req.method === 'POST') {
-        const k = ep ? await keyOf(ep) : '';
-        const rec = k ? await env.KV.get(k, 'json') : null;
+        const { k, rec } = await locate();
         if (!rec) return json({ error: 'not registered' }, 404);
         rec.profile = cleanProfile(body.profile || {}); rec.updatedAt = now();
         await env.KV.put(k, JSON.stringify(rec));
@@ -74,9 +89,12 @@ export default {
       }
       if (url.pathname === '/admin/import' && admin && req.method === 'POST') {
         let added = 0;
+        // 이미 있는 알림 주소는 다시 넣지 않음 (기기 번호 쪽으로 옮겨진 기록 포함)
+        const have = new Set();
+        for (const x of (await env.KV.list({ prefix: 'sub:' })).keys) { const r = await env.KV.get(x.name, 'json'); if (r && r.sub) have.add(r.sub.endpoint); }
         for (const x of body.items || []) {
           const sub = cleanSub(x.sub || x);
-          if (!sub) continue;
+          if (!sub || have.has(sub.endpoint)) continue;
           const k = await keyOf(sub.endpoint);
           if (await env.KV.get(k)) continue;
           const id = x.id || x.profile || await nextId(env);

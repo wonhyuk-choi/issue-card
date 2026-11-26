@@ -340,7 +340,8 @@ html, body, button, a, .card, .controls, .controls * , header, header * { touch-
     return [1, 2, 3, 4, 5, 6, 0].filter(function (n) { return d.indexOf(n) >= 0; }).map(function (n) { return DAY_NAMES[n]; }).join('·') + '요일';
   }
   var sched = null;
-  function dataFile() { return 'data/' + (profileId || 'p1') + '.json'; }
+  var noFile = {}; // 아직 맞춤 카드가 없는 사람은 기본 카드(p1)를 보여 줌
+  function dataFile() { var f = 'data/' + (profileId || 'p1') + '.json'; return noFile[f] ? 'data/p1.json' : f; }
   function mySched() { return sched || (form && form.schedule) || DEFAULT_SCHED; }
   function timeLabel(s) {
     var p = (s.time || '07:20').split(':'), h = +p[0], m = p[1] || '00';
@@ -374,6 +375,7 @@ html, body, button, a, .card, .controls, .controls * , header, header * { touch-
     if (manual) { refreshMsg = '최신 소식을 확인하는 중이에요…'; refreshKind = ''; rerenderIfPanel(); }
     var file = dataFile();
     return fetch(file + '?t=' + Date.now(), { cache: 'no-store' }).then(function (r) {
+      if (r.status === 404 && file !== 'data/p1.json') { noFile[file] = true; file = 'data/p1.json'; return fetch(file + '?t=' + Date.now(), { cache: 'no-store' }).then(function (r2) { if (!r2.ok) throw new Error(r2.status); return r2.json(); }); }
       if (!r.ok) throw new Error(r.status);
       return r.json();
     }).then(function (d) {
@@ -418,7 +420,15 @@ html, body, button, a, .card, .controls, .controls * , header, header * { touch-
   // 이 기기가 등록돼 있으면 어떤 사람(profile)인지 찾음. 등록도 설정도 없으면 첫 화면에 맞춤 설정을 보여 줌
   // 알림 저장소(워커): 있으면 알림 등록·일시중지를 버튼 하나로 처리
   var workerUrl = null, paused = false, toggling = false;
+  /* 이 기기의 번호 (알림 없이 초대 코드만으로 등록할 때도 이 번호로 찾음) */
+  var deviceId = ls('device-id');
+  if (!deviceId) {
+    deviceId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('d' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12) + Math.random().toString(36).slice(2, 12));
+    ls('device-id', deviceId);
+  }
+  var setupBusy = false, setupErr = '';
   function api(path, body) {
+    body = Object.assign({ device: deviceId }, sub ? { endpoint: sub.endpoint } : {}, body);
     return fetch(workerUrl + path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
       .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || r.status); return j; }); });
   }
@@ -429,10 +439,10 @@ html, body, button, a, .card, .controls, .controls * , header, header * { touch-
       sub = res[0] || null;
       var list = res[1];
       workerUrl = res[3] && res[3].url || null;
-      if (workerUrl && sub) {
-        return api('/status', { endpoint: sub.endpoint }).then(function (st) {
-          if (st.registered) { profileId = st.id; paused = !!st.paused; if (st.profile && st.profile.interests) srvProfile = st.profile; ls('profile-id', profileId); ls('push-registered', sub.endpoint); }
-          else ls('push-registered', null);
+      if (workerUrl) {
+        return api('/status', {}).then(function (st) {
+          if (st.registered) { profileId = st.id; paused = !!st.paused; if (st.profile && st.profile.interests) srvProfile = st.profile; ls('profile-id', profileId); ls('push-registered', st.push && sub ? sub.endpoint : null); }
+          else { ls('push-registered', null); if (profileId && ls('profile-id') === profileId) { profileId = null; ls('profile-id', null); } }
           return res;
         }, function () { return res; });
       }
@@ -494,11 +504,17 @@ html, body, button, a, .card, .controls, .controls * , header, header * { touch-
   }
 
   function profileNote() {
-    if (form && !profileId) return '<p class="rstatus">맞춤 직무 카드는 알림 등록이 끝난 다음 날 아침부터 보여요.</p>';
+    if (profileId && noFile['data/' + profileId + '.json']) return '<p class="rstatus">등록됐어요. 내 맞춤 카드는 곧 준비돼요. 그 전까지는 기본 카드를 보여 드려요.</p>';
+    if (form && !profileId && !workerUrl) return '<p class="rstatus">맞춤 직무 카드는 알림 등록이 끝난 다음 날 아침부터 보여요.</p>';
     return '';
   }
   function pushPanel() {
     /* 알림이 이미 켜진 기기는 표지에서 숨김(상단 ⚙︎ 설정에서 관리). 설치·알림 켜기가 남은 사람에게만 표지에 보여 줌 */
+    if (workerUrl) {
+      if (profileId) return profileNote();
+      return '<div class="panel"><h3><span class="dot"></span>내 맞춤 카드 받기</h3><p>초대 코드가 있으면 직업과 관심분야에 맞춘 카드를 받을 수 있어요. 알림은 켜지 않아도 돼요.</p>' +
+        '<button type="button" class="rbtn small solid" data-act="edit-profile">초대 코드로 등록하기</button></div>';
+    }
     var done = pushOK && !!sub && Notification.permission === 'granted' && ls('push-registered') === sub.endpoint;
     return done ? '' : pushPanelInner() + profileNote();
   }
@@ -536,7 +552,7 @@ html, body, button, a, .card, .controls, .controls * , header, header * { touch-
     }
     return '<div class="panel"><h3><span class="dot"></span>알림 꺼짐</h3>' +
       '<p>' + (offDone ? '알림을 껐어요. 카드는 앱을 열면 계속 볼 수 있어요. 다시 켜면 새 코드를 한 번 더 보내 주셔야 해요.' : '알림을 켜면 ' + esc(schedLabel()) + '에 새 카드가 도착할 때 알려 드려요.') + '</p>' +
-      (workerUrl ? '<label style="font-size:13px;font-weight:700;display:grid;gap:6px">초대 코드<input id="f-invite" type="text" autocomplete="off" autocapitalize="off" value="' + esc(ls('invite') || '') + '" style="font:400 16px var(--f-text);color:var(--ink);background:var(--soft);border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;user-select:text;-webkit-user-select:text"></label>' : '') +
+      (workerUrl && !profileId ? '<label style="font-size:13px;font-weight:700;display:grid;gap:6px">초대 코드<input id="f-invite" type="text" autocomplete="off" autocapitalize="off" value="' + esc(ls('invite') || '') + '" style="font:400 16px var(--f-text);color:var(--ink);background:var(--soft);border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;user-select:text;-webkit-user-select:text"></label>' : '') +
       '<button type="button" class="rbtn small solid" data-act="push"' + (pushBusy ? ' disabled' : '') + '>' + (pushBusy ? '켜는 중…' : '알림 켜기') + '</button>' +
       (pushErr ? '<p class="rstatus err">' + esc(pushErr) + '</p>' : '') + install + '</div>';
   }
@@ -576,7 +592,10 @@ html, body, button, a, .card, .controls, .controls * , header, header * { touch-
         '<p>이 시간에 맞춰 그날 카드를 새로 만들고 알림을 보내요.</p></div>' +
         '<label>더 알고 싶은 것 (선택)<textarea id="f-note" maxlength="300" placeholder="예: 공기업 채용, 2차전지 투자, 간호 정책">' + esc(f.note) + '</textarea></label>' +
         '<p>이름이나 회사명은 적지 마세요. 적은 내용은 카드를 고르는 데만 쓰여요.</p>' +
-        '<button type="button" class="rbtn solid" data-act="save-profile">저장하고 시작하기</button>' +
+        (workerUrl && !profileId ? '<label>초대 코드<input id="f-invite-setup" type="text" autocomplete="off" autocapitalize="off" value="' + esc(ls('invite') || '') + '"></label>' +
+          '<p>초대 코드를 넣으면 내 맞춤 카드가 만들어져요. 알림은 나중에 위쪽 ⚙︎ 설정에서 원할 때 켜면 돼요. 코드가 없으면 기본 카드만 보여요.</p>' : '') +
+        (setupErr ? '<p class="rstatus err">' + esc(setupErr) + '</p>' : '') +
+        '<button type="button" class="rbtn solid" data-act="save-profile"' + (setupBusy ? ' disabled' : '') + '>' + (setupBusy ? '등록하는 중…' : (workerUrl && !profileId ? '등록하고 시작하기' : '저장하고 시작하기')) + '</button>' +
         '<button type="button" class="linkbtn" data-act="skip-profile" style="justify-self:center">건너뛰기</button></div>';
     }
     if (s.type === 'cover') {
@@ -678,7 +697,20 @@ html, body, button, a, .card, .controls, .controls * , header, header * { touch-
         schedule: { time: tm, days: days, holidays: !hol || hol.getAttribute('aria-pressed') === 'true' } };
       if (!profileId) sched = null;
       ls('profile-local', JSON.stringify(form));
-      if (profileId && workerUrl && sub) { api('/profile', { endpoint: sub.endpoint, profile: form }).catch(function () {}); sched = form.schedule; }
+      if (profileId && workerUrl) { api('/profile', { profile: form }).catch(function () {}); sched = form.schedule; }
+      else if (workerUrl) {
+        var ivs = stage.querySelector('#f-invite-setup'), code = ivs ? ivs.value.trim() : '';
+        if (code) {
+          ls('invite', code); setupBusy = true; setupErr = ''; render(false);
+          return api('/register', { invite: code, profile: form }).then(function (r) {
+            profileId = r.id; paused = !!r.paused; ls('profile-id', profileId); sched = form.schedule;
+            setupBusy = false; showSetup = false; i = 0; setData(raw, true); load(false);
+          }, function (e) {
+            setupBusy = false; setupErr = (e && e.message === 'invite') ? '초대 코드가 맞지 않아요. 앱을 알려준 사람에게 코드를 확인해 주세요.' : '등록하지 못했어요. 인터넷 연결을 확인하고 다시 눌러 주세요.';
+            render(false);
+          });
+        }
+      }
       else if (profileId) { ls('push-registered', null); ls('profile-dirty', '1'); } // 저장소가 없으면 바뀐 설정을 코드로 다시 보내게 함
       showSetup = false; i = 0; return setData(raw, true);
     }
@@ -687,9 +719,9 @@ html, body, button, a, .card, .controls, .controls * , header, header * { touch-
     if (name === 'push') { var iv = stage.querySelector('#f-invite'); if (iv && iv.value.trim()) ls('invite', iv.value.trim()); return enablePush(); }
     if (name === 'copy') return copyCode();
     if (name === 'registered') { if (sub) ls('push-registered', sub.endpoint); ls('profile-dirty', null); copied = false; return render(false); }
-    if (name === 'toggle' && workerUrl && sub && !toggling) {
+    if (name === 'toggle' && workerUrl && profileId && !toggling) {
       toggling = true; pushErr = ''; render(false);
-      return api('/pause', { endpoint: sub.endpoint, paused: !paused }).then(function (r) { paused = r.paused; }, function () { pushErr = '바꾸지 못했어요. 인터넷 연결을 확인하고 다시 눌러 주세요.'; })
+      return api('/pause', { paused: !paused }).then(function (r) { paused = r.paused; }, function () { pushErr = '바꾸지 못했어요. 인터넷 연결을 확인하고 다시 눌러 주세요.'; })
         .then(function () { toggling = false; render(false); });
     }
     if (name === 'pause-help') { pauseHelp = !pauseHelp; return render(false); }

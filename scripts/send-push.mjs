@@ -23,8 +23,8 @@ if (fs.existsSync('push/worker.json')) {
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const recs = await r.json();
     const paused = recs.filter((x) => x.paused).length;
-    subs = recs.filter((x) => !x.paused).map((x) => ({ ...x.sub, profile: x.id }));
-    console.log(`알림 저장소에서 기기 ${recs.length}대 확인 (일시중지 ${paused}대 제외)`);
+    subs = recs.filter((x) => !x.paused && x.sub).map((x) => ({ ...x.sub, profile: x.id }));
+    console.log(`알림 저장소에서 기기 ${recs.length}대 확인 (일시중지 ${paused}대, 알림 안 켠 기기 ${recs.filter((x) => !x.sub).length}대 제외)`);
   } catch (e) { console.error('알림 저장소 접속 실패, 저장소 파일 목록으로 보냅니다:', e.message); }
 }
 const vapidDetails = { subject: site, publicKey, privateKey };
