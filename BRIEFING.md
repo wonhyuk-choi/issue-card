@@ -4,6 +4,7 @@
 앱 주소: https://wonhyuk-choi.github.io/issue-card/
 
 ## 0) 대상과 실행 종류
+- 먼저 앱에서 바꾼 맞춤 설정을 가져옵니다(매시 자동 동기화가 늦거나 빠질 수 있어서): `gh api -X POST repos/wonhyuk-choi/issue-card/actions/workflows/worker.yml/dispatches -f ref=main` 로 "알림 저장소 배포·동기화"를 실행하고, `gh api 'repos/wonhyuk-choi/issue-card/actions/workflows/worker.yml/runs?per_page=1'` 의 status가 completed가 될 때까지(최대 3분) 기다린 뒤 `git pull --rebase origin main` 합니다. 실패하면 지금 있는 파일로 그대로 진행합니다.
 - `push/profiles.json`에서 대상 프로필을 찾습니다: `job`, `interests`, `note`, `schedule`(`time` "HH:MM", `days` 요일 번호 배열(0=일, 1=월 … 6=토; 예전 형식 "weekdays"=1-5, "daily"=매일), `holidays` true면 공휴일에 쉼).
 - 지금 시각(Asia/Seoul)이 그 사람의 `schedule.time` 40분 전부터 그 시각 사이면 **정기 실행**, 아니면 사용자가 직접 실행한 **수동 실행**입니다.
 
