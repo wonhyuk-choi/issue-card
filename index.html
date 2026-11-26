@@ -435,7 +435,7 @@ body.in-setup .app { grid-template-rows: auto 1fr; }
       var chips = INTERESTS.map(function (v) { return '<button type="button" data-chip="1" aria-pressed="' + (f.interests.indexOf(v) >= 0) + '">' + esc(v) + '</button>'; }).join('');
       return '<div class="stripe" style="--cat:var(--accent)"></div><div class="inner">' +
         '<h1>나에게 맞는 직무 카드 받기</h1>' +
-        '<p>공통 이슈 10개에 더해, 내 직업과 관심분야에 맞춘 카드 2개를 원하는 시간에 만들어 드려요.</p>' +
+        '<p>주요 이슈 10개에 더해, 내 직업과 관심분야에 맞춘 직무 카드를 원하는 시간에 만들어 드려요. 직무 카드는 중요한 소식이 많으면 여러 장, 없으면 쉬어요.</p>' +
         '<label>직업 또는 하는 일<input id="f-job" type="text" maxlength="60" placeholder="예: 병원 간호사, 마케팅 기획, 대학생(전기공학)" value="' + esc(f.job) + '"></label>' +
         '<div style="display:grid;gap:8px"><b style="font-size:13px">관심분야 (여러 개 선택)</b><div class="chips">' + chips + '</div></div>' +
         '<div style="display:grid;gap:8px"><b style="font-size:13px">알림 받을 시간</b>' +
